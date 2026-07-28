@@ -34,7 +34,41 @@ Google Sheet: https://docs.google.com/spreadsheets/d/1o8bjdsJaukcX3SJtSfSjXLb6MI
   categorization, derived columns D through X, impact proration. No DOM access,
   so it runs under Node for the parity test.
 
-## Next, in order
+## Status: working end to end
+
+All five screens build and run, parity passes, committed in two commits. What
+remains is optional polish plus one decision (below).
+
+Run it locally:
+
+    cd site && python -m http.server 8123
+
+Then open http://localhost:8123. Opening `index.html` directly will not work,
+because browsers block ES module and fetch loads from `file://`.
+
+## Open decisions for James
+
+1. **Ship bug-compatible or corrected?** The site defaults to reproducing the
+   workbook, with a toggle on the inputs screen. The risk-1.3 defect is live in
+   the Google Sheet, so "corrected" means the site and the sheet disagree.
+2. **Push to GitHub.** Not done: no remote is configured and pushing is
+   outward-facing. `.github/workflows/deploy.yml` is ready and gates deploy on
+   the parity test.
+3. Whether to also fix the two defects in the Google Sheet itself.
+
+## Possible next steps
+
+- A choropleth of Nigeria by state or LGA. Needs boundary GeoJSON, which is not
+  in the workbook.
+- `docs/spec-summaries.md` and `docs/spec-outputs.md` were never written; the
+  layouts were rebuilt from the model rather than transcribed, so these are
+  documentation debt rather than blockers.
+- The zone and state aggregations were rebuilt from first principles rather than
+  from `State summary Ward level`. They agree with the national totals, which the
+  parity test covers, but per-state figures are not independently checked against
+  that sheet's frozen `COUNTUNIQUEIFS` cells.
+
+## Superseded, for reference
 
 1. **Allocation mechanism for the 4 strategies.** The critical unknown. Three
    subagents were mapping this and produced nothing before the process exited, so
