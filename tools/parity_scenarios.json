@@ -1,0 +1,93 @@
+[
+  {
+    "name": "s0_saved",
+    "note": "The sheet's own saved state. Manual allocation takes the whole supply, so the strategy pool is empty.",
+    "total_cartons": 10000,
+    "age_range": "6 to 23",
+    "duration": 6,
+    "enroll": 6,
+    "coverage_cap": 0.75,
+    "level": "LGAs",
+    "thresh": [0, 0, 0],
+    "manual": {"Jigawa": 10000},
+    "strategy": "Prioritize preventing U2 deaths"
+  },
+  {
+    "name": "s1_pool_only",
+    "note": "No manual allocation, so the whole supply flows through the greedy pool. This is the path the saved state never exercises.",
+    "total_cartons": 10000,
+    "age_range": "6 to 23",
+    "duration": 6,
+    "enroll": 6,
+    "coverage_cap": 0.75,
+    "level": "LGAs",
+    "thresh": [0, 0, 0],
+    "manual": {},
+    "strategy": "Prioritize preventing U2 deaths"
+  },
+  {
+    "name": "s2_split_manual",
+    "note": "Manual and pool both active, across three states, with a supply large enough to fund many geographies.",
+    "total_cartons": 250000,
+    "age_range": "6 to 23",
+    "duration": 6,
+    "enroll": 6,
+    "coverage_cap": 0.75,
+    "level": "LGAs",
+    "thresh": [0, 0, 0],
+    "manual": {"Jigawa": 40000, "Kano": 25000, "Lagos": 10000},
+    "strategy": "Prioritize preventing stunting cases"
+  },
+  {
+    "name": "s3_thresholds",
+    "note": "Thresholds bite, so the threshold strategy is gated to a subset. Program parameters all changed too.",
+    "total_cartons": 400000,
+    "age_range": "6 to 18",
+    "duration": 9,
+    "enroll": 4,
+    "coverage_cap": 0.6,
+    "level": "LGAs",
+    "thresh": [120, 40, 10],
+    "manual": {"Bauchi": 15000},
+    "strategy": "Threshold-based strategy"
+  },
+  {
+    "name": "s4_short_duration",
+    "note": "Six-to-eleven months, two-month duration. Duration below three months zeroes the effect, so impact should be zero while allocation is unaffected.",
+    "total_cartons": 75000,
+    "age_range": "6 to 11",
+    "duration": 2,
+    "enroll": 12,
+    "coverage_cap": 1.0,
+    "level": "Wards",
+    "thresh": [10, 0, 0],
+    "manual": {},
+    "strategy": "Equal distribution"
+  },
+  {
+    "name": "s5_oversupply",
+    "note": "Supply exceeds total national need, so every geography must be funded to exactly its own need and nothing more.",
+    "total_cartons": 40000000,
+    "age_range": "6 to 23",
+    "duration": 12,
+    "enroll": 6,
+    "coverage_cap": 0.75,
+    "level": "LGAs",
+    "thresh": [10, 0, 0],
+    "manual": {"Yobe": 5000},
+    "strategy": "Prioritize preventing U2 deaths"
+  },
+  {
+    "name": "s6_tight_thresholds",
+    "note": "Severe thresholds plus a ward-level view, testing the gate at the row level rather than in aggregate.",
+    "total_cartons": 120000,
+    "age_range": "6 to 23",
+    "duration": 6,
+    "enroll": 6,
+    "coverage_cap": 0.75,
+    "level": "Wards",
+    "thresh": [160, 55, 12],
+    "manual": {"Sokoto": 8000, "Zamfara": 4000},
+    "strategy": "Threshold-based strategy"
+  }
+]

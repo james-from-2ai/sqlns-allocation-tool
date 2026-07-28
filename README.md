@@ -43,8 +43,15 @@ Full audit, with the verification for each claim: [`docs/FINDINGS.md`](docs/FIND
       build_clean_workbook.py   generate the rebuilt xlsx
       clean_workbook_sheets.py  its non-model sheets
       verify_clean_workbook.py  recalculate the rebuild in Excel and check it
+      parity_scenarios.json     the seven input scenarios
+      parity_excel_side.py      drive the rebuild through each, dump every row
+      parity_keystrokes.py      print the cell entries for the sheet side
+      claim_download.py         file a dataset pulled from the sheet
+      parity_diff.py            compare the two, report residuals
+      probe_inputs.py           find every formula that reads a given input cell
     docs/
       FINDINGS.md           audit results
+      PARITY.md             the rebuild vs the live sheet, seven scenarios
       spec-strategies.md    the allocation mechanism, formulas quoted
 
 ## Regenerating the data
@@ -84,6 +91,29 @@ settings. Residuals on floating-point columns are ~1e-9 relative, which is the
 precision of Google's 10-significant-figure cached values, not a model
 difference. Integer columns, risk categories, and the three prioritization
 strategies match exactly.
+
+This test covers **one** set of inputs, the workbook's saved state. To show the
+two agree when the inputs change, see below.
+
+## Proving the rebuild matches the live Google Sheet
+
+[`docs/PARITY.md`](docs/PARITY.md) records a seven-scenario comparison against the
+live sheet, varying supply, age range, duration, enrollment, coverage cap,
+allocation level, thresholds, and the per-state manual reserve.
+
+All 14 comparisons pass, being 7 scenarios at 2 levels. Cartons needed and the
+three prioritization strategies agree **exactly** on all 774 LGAs and all 9,684
+wards; the floating-point columns agree to ~1e-9 relative.
+
+```bash
+python tools/parity_excel_side.py     # drive the rebuild through each scenario
+python tools/parity_diff.py           # compare against the sheet, report residuals
+```
+
+The sheet side needs a browser session, since the xlsx export cannot recalculate
+and the live sheet is the only oracle that can be re-driven. `docs/PARITY.md` has
+the full method, including the four ways the sheet silently rejects automated
+input.
 
 ## Known defects in the source model
 

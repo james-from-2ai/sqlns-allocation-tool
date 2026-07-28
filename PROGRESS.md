@@ -5,6 +5,11 @@ Rebuild of the SQ-LNS Allocation Tool as a static site for GitHub Pages.
 Source workbook: `C:\Users\G09jb\Downloads\SQ-LNS Allocation Tool.xlsx`
 Google Sheet: https://docs.google.com/spreadsheets/d/1o8bjdsJaukcX3SJtSfSjXLb6MIjaWapLZhi7FOK2hd8/edit
 
+**The source export went missing from Downloads mid-session.** A fresh one is at
+`C:\Users\G09jb\Downloads\PARITY TEST COPY - SQ-LNS Allocation Tool (safe to edit).xlsx`,
+re-exported from the sheet. `xlsxpeek.py` still points at the old path, so update
+`WORKBOOK` before re-running `build_data.py`.
+
 ## Decisions taken
 
 - **Port the calculation to JavaScript**, rather than keeping Excel as the runtime
@@ -46,6 +51,20 @@ Run it locally:
 Then open http://localhost:8123. Opening `index.html` directly will not work,
 because browsers block ES module and fetch loads from `file://`.
 
+## Parity with the live Google Sheet: proven
+
+`docs/PARITY.md`. Seven input scenarios, both levels, 14 comparisons, all pass.
+Cartons needed and the three prioritization strategies agree exactly on all 774
+LGAs and all 9,684 wards; floating-point columns agree to ~1e-9.
+
+This closes the gap the old parity test left: `parity_test.mjs` only ever covered
+the workbook's one saved input set, and the greedy pool was never exercised there
+because `F5 - F13` was zero. Scenario s1 covers it, and s2 through s6 vary every
+program parameter, both threshold sets, and the manual reserve.
+
+Testing was done against a **private copy** of the sheet. Grace's original was
+never modified; its `modifiedTime` is unchanged.
+
 ## Open decisions for James
 
 1. **Ship bug-compatible or corrected?** The site defaults to reproducing the
@@ -55,6 +74,14 @@ because browsers block ES module and fetch loads from `file://`.
    outward-facing. `.github/workflows/deploy.yml` is ready and gates deploy on
    the parity test.
 3. Whether to also fix the two defects in the Google Sheet itself.
+4. **`F13` is a typed literal in the sheet, derived in the rebuild.** The sheet's
+   pool is `F5 - F13` while the per-state reserve is `M9:M45`, and nothing keeps
+   them in sync. The rebuild computes it from the table, so it cannot drift. This
+   is the only behavioral difference between the two and it is deliberate. Confirm
+   it is wanted, and consider fixing `F13` in the sheet to `=M46`.
+5. **`F14`, "Manual allocation (%)", is inert** in the sheet: zero formula
+   references anywhere. Either wire it up or remove it, since it currently reads
+   as a live control.
 
 ## Possible next steps
 
@@ -96,6 +123,16 @@ because browsers block ES module and fetch loads from `file://`.
 
 ## Gotchas to carry forward
 
+- `xlsxpeek.py` did not unescape **shared strings**, so `&` arrived as `&amp;` and
+  three ward names (`Adin 1&2`, `Oke Emo 1&2`, `Bashua East & West`) carried the
+  entity into `base.json`, `fixtures.json`, the site, and the rebuilt workbook.
+  Fixed at the source; the JSON and the workbook were regenerated. Any other tool
+  reading `<t>` elements needs the same treatment.
+- The sheet **silently rejects** several automated inputs: `F9` turns `75%` into
+  text, `F21` has data validation refusing values below its Minimum helper while
+  `F22`/`F23` do not, and `F6`/`F12` are dropdowns whose rejection modal then eats
+  every following keystroke. Always read inputs back before trusting an output.
+  Details in `docs/PARITY.md`.
 - Excel `MATCH`/`SUMIF`/`COUNTIF` are **case-insensitive**; JavaScript is not.
   The ward sheet spells the capital territory `Fct`, the LGA sheet and the manual
   allocation list use `FCT`. `build_data.py` canonicalizes to `FCT`. Any new

@@ -1,0 +1,35 @@
+{
+ "original": {
+  "bytes": 58152747,
+  "sheets": 45,
+  "visible": 15,
+  "hidden": 30,
+  "xml": 495110597,
+  "formulas": 2062130,
+  "cells": 8000889,
+  "dummy": 6205,
+  "gfun": {
+   "AVERAGE": 105,
+   "FILTER": 4,
+   "REDUCE": 1,
+   "TRANSPOSE": 45,
+   "COUNTUNIQUEIFS": 308,
+   "SPARKLINE": 148,
+   "D": 74,
+   "T": 74,
+   "AJ": 74,
+   "AZ": 74
+  }
+ },
+ "rebuilt": {
+  "bytes": 4364035,
+  "sheets": 8,
+  "visible": 8,
+  "hidden": 0,
+  "xml": 38444529,
+  "formulas": 293299,
+  "cells": 440237,
+  "dummy": 0,
+  "gfun": {}
+ }
+}

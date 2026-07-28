@@ -52,7 +52,12 @@ class Book:
             self.zip.read("xl/sharedStrings.xml").decode("utf8", "ignore"),
             re.S,
         ):
-            self.strings.append("".join(re.findall(r"<t[^>]*>(.*?)</t>", m.group(1), re.S)))
+            # Shared strings are XML-escaped like any other text, so `&` arrives as
+            # `&amp;`. Three ward names contain one. Unescape here, not at the call
+            # site, or the entity leaks into every artifact built from this tool.
+            self.strings.append(
+                unescape("".join(re.findall(r"<t[^>]*>(.*?)</t>", m.group(1), re.S)))
+            )
 
     def xml(self, sheet):
         return self.zip.read(self.by_name[sheet]["path"]).decode("utf8", "ignore")
