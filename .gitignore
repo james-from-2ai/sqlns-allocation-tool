@@ -2,4 +2,13 @@ __pycache__/
 *.pyc
 node_modules/
 .DS_Store
-dist/
+
+# Excel lock files, created whenever a workbook is open.
+~$*
+
+# The rebuilt workbook in dist/ is deliberately tracked: it is a deliverable
+# people download, not an incidental build artifact. Its sibling parity_runs/ is
+# not, being ~26 MB of regenerable per-scenario dumps. The summary report is
+# small enough to keep as the evidence trail.
+dist/parity_runs/*
+!dist/parity_runs/REPORT.txt

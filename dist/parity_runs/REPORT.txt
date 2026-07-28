@@ -1,0 +1,209 @@
+
+==============================================================================
+s0_saved: The sheet's own saved state. Manual allocation takes the whole supply, so the strategy pool is empty.
+  supply 10,000  age 6 to 23  duration 6  enrollment 6  cap 75%  thresholds [0, 0, 0]  manual {'Jigawa': 10000}
+  lga  774 keys
+    ok   need       exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 3,016,489.00
+    ok   deaths_av  rel<=1e-06   worst rel  7.22e-10  abs  6.76e-08  beyond tol     0  exact     0/  774  total 21,841.04
+    ok   stunt_av   rel<=1e-06   worst rel  5.14e-10  abs  5.67e-07  beyond tol     0  exact     0/  774  total 220,883.03
+    ok   sam_av     rel<=1e-06   worst rel  4.79e-10  abs  5.78e-08  beyond tol     0  exact     6/  774  total 23,173.84
+    ok   anemia_av  rel<=1e-06   worst rel  4.79e-10  abs  8.18e-07  beyond tol     0  exact     0/  774  total 568,939.09
+    ok   dalys      rel<=1e-06   worst rel  8.54e-10  abs  2.00e-06  beyond tol     0  exact     0/  774  total 546,414.02
+    ok   alloc_d    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 10,000.00
+    ok   alloc_s    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 10,000.00
+    ok   alloc_t    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 10,000.00
+    ok   alloc_e    rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 10,000.00
+  ward 9,677 keys
+    ok   need       exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 3,021,268.00
+    ok   deaths_av  rel<=1e-06   worst rel  7.58e-10  abs  9.23e-09  beyond tol     0  exact     0/ 9677  total 22,056.40
+    ok   stunt_av   rel<=1e-06   worst rel  7.61e-10  abs  6.78e-08  beyond tol     0  exact     0/ 9677  total 222,681.86
+    ok   sam_av     rel<=1e-06   worst rel  4.83e-10  abs  6.82e-09  beyond tol     0  exact    80/ 9677  total 23,232.88
+    ok   anemia_av  rel<=1e-06   worst rel  4.83e-10  abs  8.91e-08  beyond tol     0  exact     0/ 9677  total 568,997.86
+    ok   dalys      rel<=1e-06   worst rel  8.09e-10  abs  2.20e-07  beyond tol     0  exact     0/ 9677  total 551,595.27
+    ok   alloc_d    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 10,000.00
+    ok   alloc_s    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 10,000.00
+    ok   alloc_t    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 10,000.00
+    ok   alloc_e    rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 10,000.00
+
+==============================================================================
+s1_pool_only: No manual allocation, so the whole supply flows through the greedy pool. This is the path the saved state never exercises.
+  supply 10,000  age 6 to 23  duration 6  enrollment 6  cap 75%  thresholds [0, 0, 0]  manual none
+  lga  774 keys
+    ok   need       exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 3,016,489.00
+    ok   deaths_av  rel<=1e-06   worst rel  7.22e-10  abs  6.76e-08  beyond tol     0  exact     0/  774  total 21,841.04
+    ok   stunt_av   rel<=1e-06   worst rel  5.14e-10  abs  5.67e-07  beyond tol     0  exact     0/  774  total 220,883.03
+    ok   sam_av     rel<=1e-06   worst rel  4.79e-10  abs  5.78e-08  beyond tol     0  exact     6/  774  total 23,173.84
+    ok   anemia_av  rel<=1e-06   worst rel  4.79e-10  abs  8.18e-07  beyond tol     0  exact     0/  774  total 568,939.09
+    ok   dalys      rel<=1e-06   worst rel  8.54e-10  abs  2.00e-06  beyond tol     0  exact     0/  774  total 546,414.02
+    ok   alloc_d    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 10,000.00
+    ok   alloc_s    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 10,000.00
+    ok   alloc_t    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 10,000.00
+    ok   alloc_e    rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 10,000.00
+  ward 9,677 keys
+    ok   need       exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 3,021,268.00
+    ok   deaths_av  rel<=1e-06   worst rel  7.58e-10  abs  9.23e-09  beyond tol     0  exact     0/ 9677  total 22,056.40
+    ok   stunt_av   rel<=1e-06   worst rel  7.61e-10  abs  6.78e-08  beyond tol     0  exact     0/ 9677  total 222,681.86
+    ok   sam_av     rel<=1e-06   worst rel  4.83e-10  abs  6.82e-09  beyond tol     0  exact    80/ 9677  total 23,232.88
+    ok   anemia_av  rel<=1e-06   worst rel  4.83e-10  abs  8.91e-08  beyond tol     0  exact     0/ 9677  total 568,997.86
+    ok   dalys      rel<=1e-06   worst rel  8.09e-10  abs  2.20e-07  beyond tol     0  exact     0/ 9677  total 551,595.27
+    ok   alloc_d    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 10,000.00
+    ok   alloc_s    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 10,000.00
+    ok   alloc_t    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 10,000.00
+    ok   alloc_e    rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 10,000.00
+
+==============================================================================
+s2_split_manual: Manual and pool both active, across three states, with a supply large enough to fund many geographies.
+  supply 250,000  age 6 to 23  duration 6  enrollment 6  cap 75%  thresholds [0, 0, 0]  manual {'Jigawa': 40000, 'Kano': 25000, 'Lagos': 10000}
+  lga  774 keys
+    ok   need       exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 3,016,489.00
+    ok   deaths_av  rel<=1e-06   worst rel  7.22e-10  abs  6.76e-08  beyond tol     0  exact     0/  774  total 21,841.04
+    ok   stunt_av   rel<=1e-06   worst rel  5.14e-10  abs  5.67e-07  beyond tol     0  exact     0/  774  total 220,883.03
+    ok   sam_av     rel<=1e-06   worst rel  4.79e-10  abs  5.78e-08  beyond tol     0  exact     6/  774  total 23,173.84
+    ok   anemia_av  rel<=1e-06   worst rel  4.79e-10  abs  8.18e-07  beyond tol     0  exact     0/  774  total 568,939.09
+    ok   dalys      rel<=1e-06   worst rel  8.54e-10  abs  2.00e-06  beyond tol     0  exact     0/  774  total 546,414.02
+    ok   alloc_d    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 250,000.00
+    ok   alloc_s    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 250,000.00
+    ok   alloc_t    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 250,000.00
+    ok   alloc_e    rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 250,000.00
+  ward 9,677 keys
+    ok   need       exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 3,021,268.00
+    ok   deaths_av  rel<=1e-06   worst rel  7.58e-10  abs  9.23e-09  beyond tol     0  exact     0/ 9677  total 22,056.40
+    ok   stunt_av   rel<=1e-06   worst rel  7.61e-10  abs  6.78e-08  beyond tol     0  exact     0/ 9677  total 222,681.86
+    ok   sam_av     rel<=1e-06   worst rel  4.83e-10  abs  6.82e-09  beyond tol     0  exact    80/ 9677  total 23,232.88
+    ok   anemia_av  rel<=1e-06   worst rel  4.83e-10  abs  8.91e-08  beyond tol     0  exact     0/ 9677  total 568,997.86
+    ok   dalys      rel<=1e-06   worst rel  8.09e-10  abs  2.20e-07  beyond tol     0  exact     0/ 9677  total 551,595.27
+    ok   alloc_d    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 250,000.00
+    ok   alloc_s    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 250,000.00
+    ok   alloc_t    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 250,000.00
+    ok   alloc_e    rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 250,000.00
+
+==============================================================================
+s3_thresholds: Thresholds bite, so the threshold strategy is gated to a subset. Program parameters all changed too.
+  supply 400,000  age 6 to 18  duration 9  enrollment 4  cap 60%  thresholds [120, 40, 10]  manual {'Bauchi': 15000}
+  lga  774 keys
+    ok   need       exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 2,525,776.00
+    ok   deaths_av  rel<=1e-06   worst rel  7.22e-10  abs  7.09e-08  beyond tol     0  exact     0/  774  total 22,901.01
+    ok   stunt_av   rel<=1e-06   worst rel  5.14e-10  abs  5.95e-07  beyond tol     0  exact     0/  774  total 231,602.72
+    ok   sam_av     rel<=1e-06   worst rel  4.79e-10  abs  6.07e-08  beyond tol     0  exact     6/  774  total 24,298.50
+    ok   anemia_av  rel<=1e-06   worst rel  4.79e-10  abs  8.58e-07  beyond tol     0  exact     0/  774  total 596,550.31
+    ok   dalys      rel<=1e-06   worst rel  8.54e-10  abs  2.10e-06  beyond tol     0  exact     0/  774  total 572,932.08
+    ok   alloc_d    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 400,000.00
+    ok   alloc_s    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 400,000.00
+    ok   alloc_t    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 226,721.00
+    ok   alloc_e    rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 400,000.00
+  ward 9,677 keys
+    ok   need       exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 2,530,434.00
+    ok   deaths_av  rel<=1e-06   worst rel  7.58e-10  abs  9.68e-09  beyond tol     0  exact     0/ 9677  total 23,126.82
+    ok   stunt_av   rel<=1e-06   worst rel  7.61e-10  abs  7.11e-08  beyond tol     0  exact     0/ 9677  total 233,488.85
+    ok   sam_av     rel<=1e-06   worst rel  4.83e-10  abs  7.15e-09  beyond tol     0  exact    80/ 9677  total 24,360.39
+    ok   anemia_av  rel<=1e-06   worst rel  4.83e-10  abs  9.34e-08  beyond tol     0  exact     0/ 9677  total 596,611.94
+    ok   dalys      rel<=1e-06   worst rel  8.09e-10  abs  2.30e-07  beyond tol     0  exact     0/ 9677  total 578,364.78
+    ok   alloc_d    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 400,000.00
+    ok   alloc_s    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 400,000.00
+    ok   alloc_t    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 238,270.00
+    ok   alloc_e    rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 400,000.00
+
+==============================================================================
+s4_short_duration: Six-to-eleven months, two-month duration. Duration below three months zeroes the effect, so impact should be zero while allocation is unaffected.
+  supply 75,000  age 6 to 11  duration 2  enrollment 12  cap 100%  thresholds [10, 0, 0]  manual none
+  lga  774 keys
+    ok   need       exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 1,016,123.00
+    ok   deaths_av  rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 0.00
+    ok   stunt_av   rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 0.00
+    ok   sam_av     rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 0.00
+    ok   anemia_av  rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 0.00
+    ok   dalys      rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 0.00
+    ok   alloc_d    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 75,000.00
+    ok   alloc_s    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 75,000.00
+    ok   alloc_t    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 75,000.00
+    ok   alloc_e    rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 75,000.00
+  ward 9,677 keys
+    ok   need       exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 1,020,690.00
+    ok   deaths_av  rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 0.00
+    ok   stunt_av   rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 0.00
+    ok   sam_av     rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 0.00
+    ok   anemia_av  rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 0.00
+    ok   dalys      rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 0.00
+    ok   alloc_d    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 75,000.00
+    ok   alloc_s    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 75,000.00
+    ok   alloc_t    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 75,000.00
+    ok   alloc_e    rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 75,000.00
+
+==============================================================================
+s5_oversupply: Supply exceeds total national need, so every geography must be funded to exactly its own need and nothing more.
+  supply 40,000,000  age 6 to 23  duration 12  enrollment 6  cap 75%  thresholds [10, 0, 0]  manual {'Yobe': 5000}
+  lga  774 keys
+    ok   need       exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 6,016,093.00
+    ok   deaths_av  rel<=1e-06   worst rel  7.22e-10  abs  1.35e-07  beyond tol     0  exact     0/  774  total 43,682.08
+    ok   stunt_av   rel<=1e-06   worst rel  5.14e-10  abs  1.13e-06  beyond tol     0  exact     0/  774  total 441,766.06
+    ok   sam_av     rel<=1e-06   worst rel  4.79e-10  abs  1.16e-07  beyond tol     0  exact     6/  774  total 46,347.69
+    ok   anemia_av  rel<=1e-06   worst rel  4.79e-10  abs  1.64e-06  beyond tol     0  exact     0/  774  total 1,137,878.17
+    ok   dalys      rel<=1e-06   worst rel  8.54e-10  abs  4.00e-06  beyond tol     0  exact     0/  774  total 1,092,828.03
+    ok   alloc_d    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 6,016,093.00
+    ok   alloc_s    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 6,016,093.00
+    ok   alloc_t    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 6,016,093.00
+    ok   alloc_e    rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 40,000,000.00
+  ward 9,677 keys
+    ok   need       exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 6,021,164.00
+    ok   deaths_av  rel<=1e-06   worst rel  7.58e-10  abs  1.85e-08  beyond tol     0  exact     0/ 9677  total 44,112.80
+    ok   stunt_av   rel<=1e-06   worst rel  7.61e-10  abs  1.36e-07  beyond tol     0  exact     0/ 9677  total 445,363.71
+    ok   sam_av     rel<=1e-06   worst rel  4.83e-10  abs  1.36e-08  beyond tol     0  exact    80/ 9677  total 46,465.76
+    ok   anemia_av  rel<=1e-06   worst rel  4.83e-10  abs  1.78e-07  beyond tol     0  exact     0/ 9677  total 1,137,995.72
+    ok   dalys      rel<=1e-06   worst rel  8.09e-10  abs  4.39e-07  beyond tol     0  exact     0/ 9677  total 1,103,190.54
+    ok   alloc_d    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 6,021,164.00
+    ok   alloc_s    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 6,021,164.00
+    ok   alloc_t    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 6,020,193.00
+    ok   alloc_e    rel<=1e-06   worst rel  1.48e-16  abs  1.82e-12  beyond tol     0  exact  9675/ 9677  total 40,000,000.00
+
+==============================================================================
+s6_tight_thresholds: Severe thresholds plus a ward-level view, testing the gate at the row level rather than in aggregate.
+  supply 120,000  age 6 to 23  duration 6  enrollment 6  cap 75%  thresholds [160, 55, 12]  manual {'Sokoto': 8000, 'Zamfara': 4000}
+  lga  774 keys
+    ok   need       exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 3,016,489.00
+    ok   deaths_av  rel<=1e-06   worst rel  7.22e-10  abs  6.76e-08  beyond tol     0  exact     0/  774  total 21,841.04
+    ok   stunt_av   rel<=1e-06   worst rel  5.14e-10  abs  5.67e-07  beyond tol     0  exact     0/  774  total 220,883.03
+    ok   sam_av     rel<=1e-06   worst rel  4.79e-10  abs  5.78e-08  beyond tol     0  exact     6/  774  total 23,173.84
+    ok   anemia_av  rel<=1e-06   worst rel  4.79e-10  abs  8.18e-07  beyond tol     0  exact     0/  774  total 568,939.09
+    ok   dalys      rel<=1e-06   worst rel  8.54e-10  abs  2.00e-06  beyond tol     0  exact     0/  774  total 546,414.02
+    ok   alloc_d    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 120,000.00
+    ok   alloc_s    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 120,000.00
+    ok   alloc_t    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 12,654.00
+    ok   alloc_e    rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact   774/  774  total 120,000.00
+  ward 9,677 keys
+    ok   need       exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 3,021,268.00
+    ok   deaths_av  rel<=1e-06   worst rel  7.58e-10  abs  9.23e-09  beyond tol     0  exact     0/ 9677  total 22,056.40
+    ok   stunt_av   rel<=1e-06   worst rel  7.61e-10  abs  6.78e-08  beyond tol     0  exact     0/ 9677  total 222,681.86
+    ok   sam_av     rel<=1e-06   worst rel  4.83e-10  abs  6.82e-09  beyond tol     0  exact    80/ 9677  total 23,232.88
+    ok   anemia_av  rel<=1e-06   worst rel  4.83e-10  abs  8.91e-08  beyond tol     0  exact     0/ 9677  total 568,997.86
+    ok   dalys      rel<=1e-06   worst rel  8.09e-10  abs  2.20e-07  beyond tol     0  exact     0/ 9677  total 551,595.27
+    ok   alloc_d    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 120,000.00
+    ok   alloc_s    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 120,000.00
+    ok   alloc_t    exact        worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 16,154.00
+    ok   alloc_e    rel<=1e-06   worst rel  0.00e+00  abs  0.00e+00  beyond tol     0  exact  9677/ 9677  total 120,000.00
+
+==============================================================================
+  PASS  s0_saved lga
+  PASS  s0_saved ward
+  PASS  s1_pool_only lga
+  PASS  s1_pool_only ward
+  PASS  s2_split_manual lga
+  PASS  s2_split_manual ward
+  PASS  s3_thresholds lga
+  PASS  s3_thresholds ward
+  PASS  s4_short_duration lga
+  PASS  s4_short_duration ward
+  PASS  s5_oversupply lga
+  PASS  s5_oversupply ward
+  PASS  s6_tight_thresholds lga
+  PASS  s6_tight_thresholds ward
+
+==============================================================================
+Scenario distinctness (LGA level, count of geographies that changed)
+  s0_saved -> s1_pool_only: alloc_d 6, alloc_s 6, alloc_t 6
+  s1_pool_only -> s2_split_manual: alloc_d 66, alloc_s 68, alloc_t 65, alloc_e 774
+  s2_split_manual -> s3_thresholds: need 774, deaths_av 774, stunt_av 774, sam_av 768, anemia_av 774, dalys 774, alloc_d 126, alloc_s 130, alloc_t 105, alloc_e 774
+  s3_thresholds -> s4_short_duration: need 774, deaths_av 774, stunt_av 774, sam_av 768, anemia_av 774, dalys 774, alloc_d 125, alloc_s 127, alloc_t 100, alloc_e 774
+  s4_short_duration -> s5_oversupply: need 774, deaths_av 774, stunt_av 774, sam_av 768, anemia_av 774, dalys 774, alloc_d 774, alloc_s 774, alloc_t 774, alloc_e 774
+  s5_oversupply -> s6_tight_thresholds: need 774, deaths_av 774, stunt_av 774, sam_av 768, anemia_av 774, dalys 774, alloc_d 774, alloc_s 774, alloc_t 774, alloc_e 774
+
+ALL SCENARIOS MATCH
