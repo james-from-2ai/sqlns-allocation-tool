@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQ-LNS Allocation Tool</title>
+<meta name="description" content="Allocate SQ-LNS supply across Nigeria's wards and LGAs, compare strategies, and quantify resource needs.">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="app">
+  <div class="app-title">
+    <h1>SQ-LNS Allocation Tool</h1>
+    <p id="scope-line">Nigeria &middot; loading&hellip;</p>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-screen="inputs" aria-selected="true">Allocation inputs</button>
+    <button role="tab" data-screen="outputs" aria-selected="false">Strategy outputs</button>
+    <button role="tab" data-screen="comparison" aria-selected="false">Strategy comparison</button>
+    <button role="tab" data-screen="state" aria-selected="false">State-level allocation</button>
+    <button role="tab" data-screen="quant" aria-selected="false">Quantification</button>
+  </nav>
+</header>
+
+<main>
+  <p id="boot" class="muted">Loading model data&hellip;</p>
+
+  <!-- ------------------------------------------------------ ALLOCATION INPUTS -->
+  <section class="screen" id="screen-inputs" hidden>
+    <div class="grid-2">
+      <div class="card">
+        <h2>Program inputs</h2>
+        <div class="field">
+          <label for="in-cartons">Total cartons supply</label>
+          <input type="number" id="in-cartons" min="0" step="100">
+        </div>
+        <div class="field">
+          <label for="in-age">Age range (months)</label>
+          <select id="in-age">
+            <option>6 to 23</option><option>6 to 18</option><option>6 to 11</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="in-duration">Supplementation duration (months)
+            <span class="hint">Below 3 months the model applies no treatment effect</span></label>
+          <input type="number" id="in-duration" min="0" max="24" step="1">
+        </div>
+        <div class="field">
+          <label for="in-enrol">Enrollment period (months)</label>
+          <input type="number" id="in-enrol" min="1" max="24" step="1">
+        </div>
+        <div class="field">
+          <label for="in-cap">Coverage cap</label>
+          <input type="number" id="in-cap" min="0" max="1" step="0.05">
+        </div>
+        <div class="field">
+          <label for="in-level">Allocation level</label>
+          <select id="in-level"><option value="lgas">LGAs</option><option value="wards">Wards</option></select>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Allocation approach</h2>
+        <p class="small muted" style="margin-top:-6px">
+          Both refinements below can be used together. Thresholds shape the
+          threshold-based strategy; manual allocation reserves supply for named
+          states before any strategy runs.
+        </p>
+
+        <fieldset class="variant" id="fs-threshold" data-active="false">
+          <legend><input type="checkbox" id="use-threshold"> <label for="use-threshold">Use thresholds</label></legend>
+          <p class="small muted" style="margin-top:0">
+            A geography qualifies only if it clears <strong>all three</strong>.
+          </p>
+          <div class="field">
+            <label for="th-u5mr">Under-5 mortality &ge; (per 1,000)</label>
+            <input type="number" id="th-u5mr" step="1" min="0">
+          </div>
+          <div class="field">
+            <label for="th-stunt">Stunting prevalence &ge; (%)</label>
+            <input type="number" id="th-stunt" step="1" min="0">
+          </div>
+          <div class="field">
+            <label for="th-wast">Wasting prevalence &ge; (%)</label>
+            <input type="number" id="th-wast" step="1" min="0">
+          </div>
+          <p class="small muted" id="th-range"></p>
+          <p class="small" id="th-count"></p>
+        </fieldset>
+
+        <fieldset class="variant" id="fs-manual" data-active="false">
+          <legend><input type="checkbox" id="use-manual"> <label for="use-manual">Use manual allocation</label></legend>
+          <p class="small muted" style="margin-top:0">
+            Cartons reserved per state, filled down that state's own priority
+            order. The rest of the supply is then allocated by the chosen strategy.
+          </p>
+          <div class="tiles" style="margin-bottom:12px">
+            <div class="tile"><div class="label">Supply</div><div class="value" id="man-supply">0</div></div>
+            <div class="tile"><div class="label">Allocated</div><div class="value" id="man-alloc">0</div></div>
+            <div class="tile"><div class="label">Remaining</div><div class="value" id="man-remain">0</div></div>
+          </div>
+          <div id="manual-warn"></div>
+          <div class="row" style="margin-bottom:8px">
+            <button class="action" id="man-clear">Clear all</button>
+          </div>
+          <div class="scroll-y"><table id="manual-table">
+            <thead><tr><th>State</th><th class="num">Cartons</th><th class="num">Need</th></tr></thead>
+            <tbody></tbody>
+          </table></div>
+        </fieldset>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Model fidelity</h2>
+      <div class="checkline">
+        <input type="checkbox" id="bug-compat" checked>
+        <label for="bug-compat">Reproduce the source workbook exactly, including a known defect</label>
+      </div>
+      <div id="bug-note"></div>
+    </div>
+
+    <div class="card">
+      <h2>What this supply covers</h2>
+      <div class="tiles" id="input-tiles"></div>
+      <h3>Estimated need by risk category</h3>
+      <div class="legend" id="risk-legend"></div>
+      <div id="risk-stack"></div>
+      <div class="scroll-x" style="margin-top:14px"><table id="risk-table">
+        <thead><tr><th>Risk category</th><th>Criteria</th><th class="num">Geographies</th>
+          <th class="num">Cartons needed</th><th class="num">Children</th></tr></thead>
+        <tbody></tbody><tfoot></tfoot>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------- STRATEGY OUTPUTS -->
+  <section class="screen" id="screen-outputs" hidden>
+    <div class="card">
+      <div class="row" style="margin-bottom:14px">
+        <label for="out-strategy"><strong>Strategy</strong></label>
+        <select id="out-strategy" style="min-width:280px"></select>
+        <span class="pill" id="out-level-pill"></span>
+        <span class="spacer"></span>
+        <button class="action" id="out-csv">Download CSV</button>
+      </div>
+      <p class="small muted" id="out-strategy-desc"></p>
+      <div class="tiles" id="out-tiles"></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h2>Cartons by zone</h2>
+        <div id="zone-chart"></div>
+      </div>
+      <div class="card">
+        <h2>Deaths averted by zone</h2>
+        <div id="zone-deaths-chart"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>By state</h2>
+      <p class="small muted" style="margin-top:-8px">States receiving nothing under this strategy are omitted.</p>
+      <div class="scroll-y"><table id="state-table">
+        <thead><tr>
+          <th>State</th><th>Zone</th><th class="num">Cartons</th><th class="num">Share</th>
+          <th class="num">LGAs</th><th class="num">Wards</th><th class="num">Children</th>
+          <th class="num">Deaths averted</th><th class="num">Stunting averted</th>
+          <th class="num">SAM averted</th><th class="num">Anemia averted</th><th class="num">DALYs</th>
+        </tr></thead>
+        <tbody></tbody><tfoot></tfoot>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ---------------------------------------------------- STRATEGY COMPARISON -->
+  <section class="screen" id="screen-comparison" hidden>
+    <div class="card">
+      <h2>Impact comparison</h2>
+      <p class="small muted" style="margin-top:-8px">
+        Each measure is scaled within its own row, so bars compare strategies,
+        not measures. Printed values carry the magnitude.
+      </p>
+      <div class="legend" id="cmp-legend"></div>
+      <div id="cmp-chart"></div>
+    </div>
+
+    <div class="card">
+      <h2>Impact table</h2>
+      <div class="scroll-x"><table id="cmp-table">
+        <thead><tr><th>Strategy</th><th class="num">Cartons</th><th class="num">LGAs</th>
+          <th class="num">Wards</th><th class="num">Children</th><th class="num">Deaths</th>
+          <th class="num">Stunting</th><th class="num">SAM</th><th class="num">Anemia</th>
+          <th class="num">DALYs</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <h2>Cost-effectiveness</h2>
+      <div class="row" style="margin-bottom:10px">
+        <label for="cmp-currency">Currency</label>
+        <select id="cmp-currency"><option value="USD">USD</option><option value="NGN">NGN</option></select>
+        <span class="small muted">Cost per case averted. Lower is better.</span>
+      </div>
+      <div class="scroll-x"><table id="cea-table">
+        <thead><tr><th>Strategy</th><th class="num">Total cost</th><th class="num">Per death</th>
+          <th class="num">Per stunting case</th><th class="num">Per SAM case</th>
+          <th class="num">Per anemia case</th><th class="num">Per DALY</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <p class="small muted">
+        Cost is product cost plus a per-geography delivery cost, matching the
+        workbook's formula.
+      </p>
+    </div>
+  </section>
+
+  <!-- --------------------------------------------------- STATE-LEVEL ALLOCATION -->
+  <section class="screen" id="screen-state" hidden>
+    <div class="card">
+      <div class="row">
+        <label for="st-state"><strong>State</strong></label>
+        <select id="st-state" style="min-width:180px"></select>
+        <label for="st-strategy"><strong>Strategy</strong></label>
+        <select id="st-strategy" style="min-width:260px"></select>
+        <span class="spacer"></span>
+        <button class="action" id="st-csv">Download CSV</button>
+      </div>
+      <div class="tiles" id="st-tiles" style="margin-top:14px"></div>
+    </div>
+
+    <div class="card">
+      <h2>Top geographies by allocation</h2>
+      <div id="st-chart"></div>
+    </div>
+
+    <div class="card">
+      <h2 id="st-table-title">Detail</h2>
+      <div class="row" style="margin-bottom:8px">
+        <label class="checkline"><input type="checkbox" id="st-only-funded" checked> Show only funded geographies</label>
+      </div>
+      <div class="scroll-y"><table id="st-table">
+        <thead><tr>
+          <th>LGA</th><th class="ward-col">Ward</th><th class="num">Risk</th><th class="num">U5MR</th>
+          <th class="num">Stunting %</th><th class="num">Wasting %</th><th class="num">Need</th>
+          <th class="num">Allocated</th><th class="num">Coverage</th><th class="num">Deaths averted</th>
+          <th class="num">DALYs</th>
+        </tr></thead>
+        <tbody></tbody><tfoot></tfoot>
+      </table></div>
+      <p class="small muted" id="st-estimated-note"></p>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------ QUANTIFICATION -->
+  <section class="screen" id="screen-quant" hidden>
+    <div class="grid-2">
+      <div class="card">
+        <h2>Program inputs</h2>
+        <p class="small muted" style="margin-top:-6px">
+          Independent of the allocation inputs, matching the workbook.
+        </p>
+        <div class="field">
+          <label for="q-age">Age range (months)</label>
+          <select id="q-age"><option>6 to 23</option><option>6 to 18</option><option>6 to 11</option></select>
+        </div>
+        <div class="field"><label for="q-duration">Supplementation duration (months)</label>
+          <input type="number" id="q-duration" min="0" max="24" step="1"></div>
+        <div class="field"><label for="q-enrol">Enrollment period (months)</label>
+          <input type="number" id="q-enrol" min="1" max="24" step="1"></div>
+        <div class="field"><label for="q-cap">Coverage cap</label>
+          <input type="number" id="q-cap" min="0" max="1" step="0.05"></div>
+        <div class="field"><label for="q-level">Level</label>
+          <select id="q-level"><option value="wards">Wards</option><option value="lgas">LGAs</option></select></div>
+      </div>
+      <div class="card">
+        <h2>Price inputs</h2>
+        <div class="field"><label for="q-cost">Cost per carton (NGN)</label>
+          <input type="number" id="q-cost" min="0" step="1000"></div>
+        <div class="field"><label for="q-markup">Markup for last-mile delivery</label>
+          <input type="number" id="q-markup" min="0" max="2" step="0.05"></div>
+        <div class="field"><label for="q-currency">Display currency</label>
+          <select id="q-currency"><option value="NGN">NGN</option><option value="USD">USD</option></select></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="margin-bottom:12px">
+        <strong>Target by</strong>
+        <select id="q-mode" style="min-width:220px">
+          <option value="risk">Risk category</option>
+          <option value="threshold">Thresholds</option>
+          <option value="impact">Impact target</option>
+        </select>
+        <span id="q-mode-extra" class="row"></span>
+      </div>
+      <div id="q-controls"></div>
+      <div class="tiles" id="q-tiles" style="margin-top:14px"></div>
+      <div id="q-notice"></div>
+    </div>
+
+    <div class="card">
+      <h2>Where the need sits</h2>
+      <div id="q-chart"></div>
+    </div>
+  </section>
+</main>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
