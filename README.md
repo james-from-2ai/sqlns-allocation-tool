@@ -21,6 +21,14 @@ regression target. `tools/parity_test.mjs` proves the port reproduces it.
 
 Full audit, with the verification for each claim: [`docs/FINDINGS.md`](docs/FINDINGS.md).
 
+## Two deliverables
+
+1. **The static site** in `site/`, for GitHub Pages.
+2. **A rebuilt workbook** at `dist/SQ-LNS Allocation Tool (rebuilt).xlsx`, for
+   people who want to keep working in Excel. 8 visible sheets and 4.4 MB, down
+   from 45 sheets and 58 MB, with the same functionality. It recalculates
+   correctly, which the original does not.
+
 ## Layout
 
     site/
@@ -29,9 +37,12 @@ Full audit, with the verification for each claim: [`docs/FINDINGS.md`](docs/FIND
       js/engine.js          constants, derived columns, risk categorization
       js/allocation.js      the four allocation strategies
     tools/
-      xlsxpeek.py           stream sheet XML from the workbook
-      build_data.py         regenerate site/data/*.json from the workbook
-      parity_test.mjs       assert the engine matches the workbook
+      xlsxpeek.py               stream sheet XML from the workbook
+      build_data.py             regenerate site/data/*.json from the workbook
+      parity_test.mjs           assert the engine matches the workbook
+      build_clean_workbook.py   generate the rebuilt xlsx
+      clean_workbook_sheets.py  its non-model sheets
+      verify_clean_workbook.py  recalculate the rebuild in Excel and check it
     docs/
       FINDINGS.md           audit results
       spec-strategies.md    the allocation mechanism, formulas quoted
@@ -43,6 +54,23 @@ Point `WORKBOOK` in `tools/xlsxpeek.py` at the source file, then:
 ```bash
 python tools/build_data.py
 ```
+
+## Rebuilding the clean workbook
+
+```bash
+python tools/build_clean_workbook.py
+```
+
+Then verify it actually recalculates. This needs Excel and `pywin32`, because
+openpyxl writes formula strings without ever evaluating them:
+
+```bash
+python tools/verify_clean_workbook.py
+```
+
+It reproduces the original's cached allocations exactly (worst relative error
+0 on the three prioritization strategies, 4.8e-10 on equal distribution), and
+separately exercises the greedy pool that the original's saved state left idle.
 
 ## Running the parity test
 
