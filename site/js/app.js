@@ -8,6 +8,7 @@ import { allocate, totalsOf, costEffectiveness, meetsThreshold } from "./allocat
 import { byRiskCategory, byThreshold, byImpactTarget, costing } from "./quantification.js";
 import { barChart, groupedBars, stackedBar, legend, fmt } from "./charts.js";
 import { choropleth, categoryChoropleth } from "./maps.js";
+import { heroMap } from "./hero.js";
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -16,6 +17,22 @@ const SERIES = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--
 const RISK_COLOR = {
   "1.1": "var(--risk-1-1)", "1.2": "var(--risk-1-2)", "1.3": "var(--risk-1-3)",
   "2": "var(--risk-2)", "3": "var(--risk-3)", "Not Classified": "var(--axis)",
+};
+
+/**
+ * The hero sits on a fixed dark navy panel, so it cannot borrow the themed risk
+ * ramp: in light mode those steps are dark blues, and the worst category
+ * (#0d366b) resolves to 1.31:1 against the hero background, rendering the
+ * highest-risk states nearly invisible. This ramp runs light to dark so severity
+ * increases with prominence, and holds regardless of page theme.
+ */
+const HERO_RISK = {
+  "1.1": "#dbe9fc",
+  "1.2": "#a8cbf6",
+  "1.3": "#74a9ee",
+  "2": "#4585dc",
+  "3": "#2b62a8",
+  "Not Classified": "rgba(255,255,255,0.13)",
 };
 
 let DATA;          // base.json
@@ -88,6 +105,7 @@ async function loadGeo() {
     dirty.add("outputs");
     dirty.add("state");
     renderScreen(currentScreen);
+    renderHero();
   } catch (err) {
     $("#attribution").textContent = "";
     for (const id of ["#state-map", "#st-map"]) {
@@ -500,6 +518,58 @@ function renderFidelityNote(rows, unit) {
          <strong>${moved.toLocaleString()}</strong> ${unit} are classified differently from the
          source workbook. Figures on these screens will not match it.
        </div>`;
+}
+
+/**
+ * Hero graphic. Runs once when boundaries arrive; it is a landing visual rather
+ * than a live view, so it does not re-render on every input change.
+ */
+function renderHero() {
+  if (!GEO) return;
+
+  // Worst (lowest-numbered) risk category present in each state, at the
+  // workbook's own default program inputs.
+  const inputs = allocationInputs();
+  const rows = derivedRows(inputs, `alloc:${inputs.level}:${inputs.ageRange}:${inputs.duration}:${inputs.enrollmentPeriod}:${inputs.coverageCap}`);
+  const worst = {};
+  for (const r of rows) {
+    const v = String(r.riskCategory);
+    if (!worst[r.state] || rankRisk(v) < rankRisk(worst[r.state])) worst[r.state] = v;
+  }
+
+  heroMap($("#hero-map"), GEO.states, (s) => worst[s] ?? "Not Classified",
+    (level) => HERO_RISK[level] ?? HERO_RISK["Not Classified"]);
+
+  const totalNeed = rows.reduce((s, r) => s + r.cartonsNeeded, 0);
+  const children = rows.reduce((s, r) => s + r.popEligible, 0);
+  const highRisk = rows.filter((r) => String(r.riskCategory).startsWith("1")).length;
+  $("#hero-stats").innerHTML = [
+    [fmt.int(DATA.wards.length), "wards"],
+    [fmt.int(DATA.lgas.length), "LGAs"],
+    [fmt.compact(children), "children eligible"],
+    [fmt.compact(totalNeed), "cartons of need"],
+    [fmt.int(highRisk), `very high risk ${inputs.level === "wards" ? "wards" : "LGAs"}`],
+  ].map(([n, k]) => `<div class="hero-stat"><div class="n">${n}</div><div class="k">${k}</div></div>`).join("");
+
+  // Legend, so the shading means something rather than just looking like a map.
+  const present = new Set(Object.values(worst));
+  const order = [...DATA.constants.riskThresholds, { level: "Not Classified", label: "Unclassified" }];
+  const swatches = order
+    .filter((t) => present.has(t.level))
+    .map((t) => `<span class="hero-key"><i style="background:${HERO_RISK[t.level]}"></i>${t.label}</span>`)
+    .join("");
+  $("#hero-caption").innerHTML =
+    `<span class="hero-caption-label">Highest risk category present, by state</span>` +
+    `<span class="hero-keys">${swatches}</span>`;
+
+  // Show the logo only if the asset is actually there, so a missing file leaves
+  // no broken image.
+  const logo = $("#hero-logo");
+  if (logo && logo.hidden) {
+    logo.addEventListener("load", () => { logo.hidden = false; }, { once: true });
+    logo.addEventListener("error", () => { logo.remove(); }, { once: true });
+    logo.src = logo.getAttribute("src");
+  }
 }
 
 /** National choropleth by state, on the outputs screen. */

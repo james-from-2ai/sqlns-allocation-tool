@@ -109,6 +109,139 @@ nav.tabs button[aria-selected="true"] {
 main { padding: 22px 24px 64px; max-width: 1280px; margin: 0 auto; }
 section.screen[hidden] { display: none; }
 
+/* --------------------------------------------------------------------- hero */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 32px;
+  align-items: center;
+  background:
+    radial-gradient(120% 130% at 88% 8%, #1c4f8f 0%, transparent 58%),
+    linear-gradient(158deg, #10243d 0%, #0b1728 62%, #0a1422 100%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  padding: 34px 38px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* A faint grid, to read as analytical rather than promotional. */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 46px 46px;
+  pointer-events: none;
+}
+
+.hero-copy { position: relative; z-index: 1; }
+.hero-logo { height: 30px; width: auto; margin-bottom: 16px; display: block; }
+.hero-eyebrow {
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: #7fb3f0;
+  font-weight: 620;
+}
+.hero-title {
+  margin: 0 0 10px;
+  font-size: clamp(26px, 3.3vw, 38px);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  font-weight: 680;
+  color: #fff;
+}
+.hero-lede {
+  margin: 0 0 20px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: #c5d6ea;
+  max-width: 52ch;
+}
+.hero-note { margin: 16px 0 0; font-size: 12px; color: #7e93ad; }
+
+.hero-stats { display: flex; gap: 26px; flex-wrap: wrap; }
+.hero-stat .n {
+  font-size: 24px;
+  font-weight: 660;
+  letter-spacing: -0.02em;
+  color: #fff;
+  line-height: 1.15;
+}
+.hero-stat .k {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #85a6c9;
+  margin-top: 2px;
+}
+
+.hero-figure { position: relative; z-index: 1; }
+.hero-map { width: 100%; height: auto; display: block; overflow: visible; }
+.hero-caption {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  color: #7e93ad;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.hero-caption-label { letter-spacing: 0.03em; }
+.hero-keys { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.hero-key { display: inline-flex; align-items: center; gap: 5px; color: #9db3cc; }
+.hero-key i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  display: inline-block;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+
+/* Each state starts pushed outward and transparent, then settles into place. */
+.hero-piece {
+  opacity: 0;
+  transform: translate(var(--tx), var(--ty)) scale(0.94);
+  transform-origin: center;
+  transform-box: fill-box;
+  transition:
+    opacity 620ms cubic-bezier(0.22, 0.9, 0.28, 1) var(--delay),
+    transform 780ms cubic-bezier(0.22, 1.1, 0.32, 1) var(--delay);
+}
+.hero-map.assembled .hero-piece {
+  opacity: 1;
+  transform: translate(0, 0) scale(1);
+  /* Once settled, drift almost imperceptibly so the scene stays alive. */
+  animation: hero-drift 9s ease-in-out infinite;
+  animation-delay: var(--float-delay);
+}
+.hero-piece:hover { filter: brightness(1.28); }
+
+@keyframes hero-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(calc(var(--tx) * 0.035), calc(var(--ty) * 0.035)) scale(1.004); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-piece {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .hero-map.assembled .hero-piece { animation: none; transform: none; }
+}
+
+@media (max-width: 860px) {
+  .hero { grid-template-columns: 1fr; padding: 26px 22px; gap: 22px; }
+  .hero-figure { order: -1; max-width: 340px; margin: 0 auto; }
+}
+
 .card {
   background: var(--surface-1);
   border: 1px solid var(--border);

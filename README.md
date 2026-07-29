@@ -56,6 +56,22 @@ Full audit, with the verification for each claim: [`docs/FINDINGS.md`](docs/FIND
       PARITY.md             the rebuild vs the live sheet, seven scenarios
       spec-strategies.md    the allocation mechanism, formulas quoted
 
+## Adding the Evidence Action logo
+
+The hero has a slot for it. Drop the official asset at:
+
+    site/img/logo.svg
+
+and it appears above the title automatically. An SVG is preferable; a
+transparent PNG at roughly 60px tall or more also works. The logo is styled to
+30px tall on a dark navy panel, so a white or light monochrome version reads
+best.
+
+Until that file exists the slot stays empty and the image element removes
+itself, so there is no broken-image icon. No logo is committed here: it is a
+trademark, and this repo is public, so the asset should be added deliberately by
+someone who can confirm the right version and usage.
+
 ## Maps
 
 State and LGA choropleths, rendered as inline SVG with no mapping library and no
