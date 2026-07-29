@@ -34,8 +34,10 @@ Full audit, with the verification for each claim: [`docs/FINDINGS.md`](docs/FIND
     site/
       data/base.json        constants, states, zones, 774 LGAs, 9,684 wards
       data/fixtures.json    workbook inputs and cached outputs, for the test
+      data/geo.json         state and LGA boundaries, joined to the model
       js/engine.js          constants, derived columns, risk categorization
       js/allocation.js      the four allocation strategies
+      js/maps.js            choropleths, inline SVG, no mapping library
     tools/
       xlsxpeek.py               stream sheet XML from the workbook
       build_data.py             regenerate site/data/*.json from the workbook
@@ -53,6 +55,35 @@ Full audit, with the verification for each claim: [`docs/FINDINGS.md`](docs/FIND
       FINDINGS.md           audit results
       PARITY.md             the rebuild vs the live sheet, seven scenarios
       spec-strategies.md    the allocation mechanism, formulas quoted
+
+## Maps
+
+State and LGA choropleths, rendered as inline SVG with no mapping library and no
+tile server, so the site stays self-contained and works offline.
+
+Boundaries come from [geoBoundaries](https://www.geoboundaries.org/) (gbOpen
+release `9469f09`), sourced from GRID3, licensed **CC BY 4.0**. Attribution is
+rendered in the site footer.
+
+The join is by name, because neither the workbook nor the boundary files carry
+admin codes. `tools/build_geo.py` reports it every run:
+
+- **States: 37 of 37.**
+- **LGAs: 774 of 774**, being 748 exact and 26 resolved by similarity.
+
+Two problems it has to solve. ADM2 carries no parent state, and LGA names repeat
+across Nigeria (`Ifelodun`, `Irepodun`, `Obi`, `Bassa`), so each LGA's state is
+derived geometrically by testing an interior point against the state polygons.
+Then names are normalized, and the remainder matched within the already-known
+state. Every inexact pairing is printed for review rather than trusted silently:
+
+```bash
+python tools/build_geo.py --report
+```
+
+Wards are not mapped. geoBoundaries has no ADM3 for Nigeria, ward names are the
+least standardized administrative layer, and ~523 wards already fall back to
+LGA-level estimates. That would need GRID3 ward boundaries and a reviewed match.
 
 ## Regenerating the data
 

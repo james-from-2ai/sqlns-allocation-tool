@@ -149,6 +149,29 @@
       <div class="tiles" id="out-tiles"></div>
     </div>
 
+    <div class="card">
+      <div class="row" style="margin-bottom:10px">
+        <h2 style="margin:0">Map</h2>
+        <span class="spacer"></span>
+        <label for="map-metric">Shade by</label>
+        <select id="map-metric">
+          <option value="cartons">Cartons allocated</option>
+          <option value="coverage">Share of need covered</option>
+          <option value="childrenTargeted">Children targeted</option>
+          <option value="deathsAverted">Deaths averted</option>
+          <option value="dalysAverted">DALYs averted</option>
+          <option value="risk">Risk category</option>
+        </select>
+      </div>
+      <p class="small muted" style="margin-top:0">
+        Click a state to open its LGA and ward detail. Bins are quantiles over
+        funded states, so each shade holds a similar number of states; the legend
+        gives the actual ranges.
+      </p>
+      <div class="legend" id="map-legend"></div>
+      <div id="state-map"></div>
+    </div>
+
     <div class="grid-2">
       <div class="card">
         <h2>Cartons by zone</h2>
@@ -233,6 +256,25 @@
     </div>
 
     <div class="card">
+      <div class="row" style="margin-bottom:10px">
+        <h2 style="margin:0">LGA map</h2>
+        <span class="spacer"></span>
+        <label for="st-map-metric">Shade by</label>
+        <select id="st-map-metric">
+          <option value="cartons">Cartons allocated</option>
+          <option value="coverage">Share of need covered</option>
+          <option value="cartonsNeeded">Cartons needed</option>
+          <option value="u5mr">U5 mortality rate</option>
+          <option value="stunting">Stunting prevalence</option>
+          <option value="risk">Risk category</option>
+        </select>
+      </div>
+      <div class="legend" id="st-map-legend"></div>
+      <div id="st-map"></div>
+      <p class="small muted" id="st-map-note"></p>
+    </div>
+
+    <div class="card">
       <h2>Top geographies by allocation</h2>
       <div id="st-chart"></div>
     </div>
@@ -308,6 +350,10 @@
     </div>
   </section>
 </main>
+
+<footer>
+  <p class="small muted" id="attribution"></p>
+</footer>
 
 <script type="module" src="js/app.js"></script>
 </body>

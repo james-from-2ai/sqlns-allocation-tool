@@ -220,6 +220,12 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 .chart .bar { transition: opacity 0.12s; }
 .chart .bar:hover { opacity: 0.78; }
 
+.chart.map .region { transition: opacity 0.1s; }
+.chart.map .region:hover { opacity: 0.78; stroke: var(--text-primary); stroke-width: 1.2; }
+
+footer { padding: 0 24px 34px; max-width: 1280px; margin: 0 auto; }
+footer p { margin: 0; }
+
 .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; margin: 2px 0 12px; color: var(--text-secondary); }
 .legend .item { display: flex; align-items: center; gap: 6px; }
 .legend .swatch { width: 11px; height: 11px; border-radius: 3px; flex: none; }

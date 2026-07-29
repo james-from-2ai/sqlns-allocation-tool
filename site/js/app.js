@@ -7,6 +7,7 @@ import { programParams, deriveRow } from "./engine.js";
 import { allocate, totalsOf, costEffectiveness, meetsThreshold } from "./allocation.js";
 import { byRiskCategory, byThreshold, byImpactTarget, costing } from "./quantification.js";
 import { barChart, groupedBars, stackedBar, legend, fmt } from "./charts.js";
+import { choropleth, categoryChoropleth } from "./maps.js";
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -18,6 +19,7 @@ const RISK_COLOR = {
 };
 
 let DATA;          // base.json
+let GEO = null;    // geo.json, loaded separately so the app works without it
 let STRATEGIES;    // constants.strategies
 let state = {};    // current inputs
 const cache = {};  // derived rows + allocations, invalidated on input change
@@ -54,7 +56,13 @@ async function boot() {
       qState: "", thresholds: { u5mr: 90, stunting: 50, wasting: 10 },
       metric: "Stunting cases averted", target: 10000, strategy: "mortality",
     },
+    mapMetric: "cartons",
+    stMapMetric: "cartons",
   };
+
+  // Boundaries are a progressive enhancement: if geo.json is missing or fails,
+  // every table and chart still works, so this must not be fatal.
+  loadGeo();
 
   $("#boot").remove();
   buildStaticControls();
@@ -63,6 +71,33 @@ async function boot() {
     `Nigeria · ${DATA.wards.length.toLocaleString()} wards · ${DATA.lgas.length} LGAs · ${DATA.states.length} states`;
   show("inputs");
   recompute();
+}
+
+/** Fetch boundaries in the background and redraw once they arrive. */
+async function loadGeo() {
+  try {
+    const res = await fetch("data/geo.json");
+    if (!res.ok) throw new Error(String(res.status));
+    GEO = await res.json();
+    // index by state, and by state+LGA, for quick joins
+    GEO.stateByName = new Map(GEO.states.map((f) => [f.state, f]));
+    GEO.lgaByKey = new Map(GEO.lgas.map((f) => [`${f.state}||${f.lga}`, f]));
+    const a = GEO.attribution;
+    $("#attribution").innerHTML =
+      `Boundaries: <a href="${a.url}" rel="noopener">${a.name}</a>, ${a.licence}. ${a.note}`;
+    dirty.add("outputs");
+    dirty.add("state");
+    renderScreen(currentScreen);
+  } catch (err) {
+    $("#attribution").textContent = "";
+    for (const id of ["#state-map", "#st-map"]) {
+      const node = $(id);
+      if (node) {
+        node.innerHTML = `<p class="muted small">Map data unavailable (${err.message}). ` +
+          `All figures on this page are unaffected.</p>`;
+      }
+    }
+  }
 }
 
 /* --------------------------------------------------------------- plumbing */
@@ -244,6 +279,8 @@ function wireEvents() {
     renderScreen("state");
   });
   $("#st-only-funded").addEventListener("change", renderStateLevel);
+  $("#map-metric").addEventListener("change", (e) => { state.mapMetric = e.target.value; renderScreen("outputs"); });
+  $("#st-map-metric").addEventListener("change", (e) => { state.stMapMetric = e.target.value; renderScreen("state"); });
   $("#st-csv").addEventListener("click", downloadDetailCsv);
 
   const q = state.quant;
@@ -393,6 +430,8 @@ function renderOutputs() {
     { label: "DALYs averted", value: fmt.compact(totals.dalysAverted) },
   ]);
 
+  renderStateMap(detail);
+
   // by zone
   const zones = aggregate(detail, (d) => DATA.zones[d.row.state] ?? "Unknown");
   const zoneList = [...zones.entries()].sort((a, b) => b[1].cartons - a[1].cartons);
@@ -461,6 +500,131 @@ function renderFidelityNote(rows, unit) {
          <strong>${moved.toLocaleString()}</strong> ${unit} are classified differently from the
          source workbook. Figures on these screens will not match it.
        </div>`;
+}
+
+/** National choropleth by state, on the outputs screen. */
+function renderStateMap(detail) {
+  if (!GEO) return;
+  const byState = aggregate(detail, (d) => d.row.state);
+  const needByState = {};
+  for (const d of detail) needByState[d.row.state] = (needByState[d.row.state] ?? 0) + d.row.cartonsNeeded;
+  // worst (lowest-numbered) risk category present in each state
+  const riskByState = {};
+  for (const d of detail) {
+    const cur = riskByState[d.row.state];
+    const v = String(d.row.riskCategory);
+    if (!cur || rankRisk(v) < rankRisk(cur)) riskByState[d.row.state] = v;
+  }
+
+  const feats = GEO.states;
+  const nameOf = (f) => f.state;
+  const detailOf = (f) => {
+    const v = byState.get(f.state);
+    const need = needByState[f.state] ?? 0;
+    if (!v) return `No allocation<br>Need ${fmt.compact(need)} cartons`;
+    return `${fmt.int(v.cartons)} of ${fmt.compact(need)} cartons needed ` +
+      `(${fmt.pct(need ? v.cartons / need : 0, 1)})<br>` +
+      `${fmt.int(v.deathsAverted)} deaths averted · ${DATA.zones[f.state] ?? ""}`;
+  };
+  const goToState = (f) => {
+    state.stateSelected = f.state;
+    state.stateTouched = true;
+    dirty.add("state");
+    show("state");
+  };
+
+  const metric = state.mapMetric;
+  if (metric === "risk") {
+    categoryChoropleth($("#state-map"), feats, (f) => riskByState[f.state] ?? "Not Classified",
+      RISK_COLOR, {
+        label: nameOf, detail: detailOf, onClick: goToState,
+        legendInto: $("#map-legend"), height: 620,
+        order: [...DATA.constants.riskThresholds.map((t) => t.level), "Not Classified"],
+      });
+    return;
+  }
+
+  const valueOf = (f) => {
+    const v = byState.get(f.state);
+    if (!v) return 0;
+    if (metric === "coverage") {
+      const need = needByState[f.state] ?? 0;
+      return need ? v.cartons / need : 0;
+    }
+    return v[metric] ?? 0;
+  };
+  const format = metric === "coverage" ? (n) => fmt.pct(n, 1) : fmt.compact;
+  choropleth($("#state-map"), feats, valueOf, {
+    label: nameOf, detail: detailOf, onClick: goToState, format,
+    legendInto: $("#map-legend"), height: 620,
+    unit: metric === "cartons" ? "cartons" : "",
+  });
+}
+
+/** Lower is worse, so 1.1 sorts first and "Not Classified" last. */
+function rankRisk(level) {
+  const n = Number(level);
+  return Number.isNaN(n) ? 99 : n;
+}
+
+/** LGA choropleth for the selected state, on the state screen. */
+function renderStateLgaMap(mine) {
+  if (!GEO) return;
+  const feats = [];
+  const byKey = new Map();
+  for (const d of mine) {
+    // At ward level several rows share an LGA, so aggregate up to it first.
+    const key = `${d.row.state}||${d.row.lga}`;
+    const e = byKey.get(key) ?? { cartons: 0, cartonsNeeded: 0, u5mr: 0, stunting: 0, n: 0, risk: null };
+    e.cartons += d.cartons;
+    e.cartonsNeeded += d.row.cartonsNeeded;
+    e.u5mr += d.row.u5mr;
+    e.stunting += d.row.stunting;
+    e.n++;
+    const v = String(d.row.riskCategory);
+    if (!e.risk || rankRisk(v) < rankRisk(e.risk)) e.risk = v;
+    byKey.set(key, e);
+  }
+  for (const key of byKey.keys()) {
+    const f = GEO.lgaByKey.get(key);
+    if (f) feats.push(f);
+  }
+
+  const missing = byKey.size - feats.length;
+  $("#st-map-note").textContent = missing
+    ? `${missing} of ${byKey.size} LGAs in this state have no boundary match and are not drawn.`
+    : "";
+
+  const stats = (f) => byKey.get(`${f.state}||${f.lga}`) ?? { cartons: 0, cartonsNeeded: 0, n: 1, u5mr: 0, stunting: 0, risk: "Not Classified" };
+  const label = (f) => f.lga;
+  const detailOf = (f) => {
+    const e = stats(f);
+    return `${fmt.int(e.cartons)} of ${fmt.int(e.cartonsNeeded)} cartons ` +
+      `(${fmt.pct(e.cartonsNeeded ? e.cartons / e.cartonsNeeded : 0, 0)})<br>` +
+      `U5MR ${fmt.dec(e.u5mr / e.n)} · stunting ${fmt.dec(e.stunting / e.n)}% · risk ${e.risk}`;
+  };
+
+  const metric = state.stMapMetric;
+  if (metric === "risk") {
+    categoryChoropleth($("#st-map"), feats, (f) => stats(f).risk, RISK_COLOR, {
+      label, detail: detailOf, legendInto: $("#st-map-legend"), height: 560,
+      order: [...DATA.constants.riskThresholds.map((t) => t.level), "Not Classified"],
+    });
+    return;
+  }
+  const valueOf = (f) => {
+    const e = stats(f);
+    if (metric === "coverage") return e.cartonsNeeded ? e.cartons / e.cartonsNeeded : 0;
+    if (metric === "u5mr") return e.u5mr / e.n;
+    if (metric === "stunting") return e.stunting / e.n;
+    if (metric === "cartonsNeeded") return e.cartonsNeeded;
+    return e.cartons;
+  };
+  const format = metric === "coverage" ? (n) => fmt.pct(n, 0)
+    : (metric === "u5mr" || metric === "stunting") ? (n) => fmt.dec(n, 1) : fmt.compact;
+  choropleth($("#st-map"), feats, valueOf, {
+    label, detail: detailOf, format, legendInto: $("#st-map-legend"), height: 560,
+  });
 }
 
 function aggregate(detail, keyFn) {
@@ -575,6 +739,8 @@ function renderStateLevel() {
     { label: "Deaths averted", value: fmt.int(st.deathsAverted) },
     { label: "DALYs averted", value: fmt.compact(st.dalysAverted) },
   ]);
+
+  renderStateLgaMap(mine);
 
   const top = mine.filter((d) => d.cartons > 0).sort((a, b) => b.cartons - a.cartons).slice(0, 15);
   barChart($("#st-chart"), top.map((d) => ({
@@ -817,3 +983,4 @@ boot().catch((err) => {
     <code>python -m http.server</code> in the <code>site</code> folder, then open
     <code>http://localhost:8000</code>. Browsers block module and fetch loads from <code>file://</code>.</span></div>`;
 });
+

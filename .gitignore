@@ -6,6 +6,10 @@ node_modules/
 # Excel lock files, created whenever a workbook is open.
 ~$*
 
+# Raw boundary downloads (~15 MB). tools/build_geo.py documents the URLs and
+# regenerates site/data/geo.json from them.
+data-src/
+
 # The rebuilt workbook in dist/ is deliberately tracked: it is a deliverable
 # people download, not an incidental build artifact. Its sibling parity_runs/ is
 # not, being ~26 MB of regenerable per-scenario dumps. The summary report is
