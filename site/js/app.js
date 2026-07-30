@@ -4,9 +4,9 @@
  */
 
 import { programParams, deriveRow } from "./engine.js";
-import { allocate, totalsOf, costEffectiveness, meetsThreshold } from "./allocation.js";
+import { allocate, totalsOf, costEffectiveness, meetsThreshold, supplyCurve } from "./allocation.js";
 import { byRiskCategory, byThreshold, byImpactTarget, costing } from "./quantification.js";
-import { barChart, winnerGroups, stackedBar, legend, fmt } from "./charts.js";
+import { barChart, winnerGroups, stackedBar, lineChart, legend, fmt } from "./charts.js";
 import { choropleth, categoryChoropleth } from "./maps.js";
 import { heroMap, heroDots } from "./hero.js";
 
@@ -94,8 +94,148 @@ async function boot() {
   heroDots($("#hero-dots"));
   $("#scope-line").textContent =
     `Nigeria · ${DATA.wards.length.toLocaleString()} wards · ${DATA.lgas.length} LGAs · ${DATA.states.length} states`;
-  show("inputs");
+
+  renderAssumptions();
+
+  const screen = readUrl();
+  syncControls();
+  show(screen ?? "inputs");
   recompute();
+
+  // Back and forward should move between scenarios, not just screens.
+  window.addEventListener("hashchange", () => {
+    const s = readUrl();
+    syncControls();
+    if (s) show(s);
+    recompute();
+  });
+}
+
+/* ------------------------------------------------------------- URL state */
+
+/**
+ * Scenarios live in the location hash, so any setup can be bookmarked, revisited
+ * or pasted into an email. Without this the tool can only ever show what is on
+ * one person's screen, which is a poor fit for something meant to support a
+ * decision between options.
+ *
+ * Keys are short because the manual-allocation list can hold 37 entries. Only
+ * values that differ from the defaults are written, so a default scenario has a
+ * clean URL.
+ */
+const URL_DEFAULTS = {
+  c: 750000, ar: "6 to 23", d: 6, ep: 6, cc: 0.75, lv: "lgas",
+  th: 0, tu: 0, ts: 0, tw: 0, mn: 0, bc: 1, sg: "mortality", sc: "inputs",
+};
+
+function writeUrl() {
+  const p = new URLSearchParams();
+  const put = (k, v) => {
+    if (String(v) !== String(URL_DEFAULTS[k])) p.set(k, v);
+  };
+  put("c", state.totalCartons);
+  put("ar", state.ageRange);
+  put("d", state.duration);
+  put("ep", state.enrollmentPeriod);
+  put("cc", state.coverageCap);
+  put("lv", state.level);
+  put("th", state.useThreshold ? 1 : 0);
+  if (state.useThreshold) {
+    put("tu", state.thresholds.u5mr);
+    put("ts", state.thresholds.stunting);
+    put("tw", state.thresholds.wasting);
+  }
+  put("mn", state.useManual ? 1 : 0);
+  if (state.useManual) {
+    const entries = Object.entries(state.manual).filter(([, v]) => Number(v) > 0);
+    if (entries.length) p.set("m", entries.map(([s, v]) => `${s}:${v}`).join(","));
+  }
+  put("bc", state.bugCompat ? 1 : 0);
+  put("sg", state.strategy);
+  put("sc", currentScreen);
+  if (state.stateTouched) p.set("ss", state.stateSelected);
+
+  const hash = p.toString();
+  // replaceState, not pushState: typing in a number field must not fill the
+  // browser's history with one entry per keystroke.
+  history.replaceState(null, "", hash ? `#${hash}` : location.pathname);
+}
+
+function readUrl() {
+  const raw = location.hash.replace(/^#/, "");
+  if (!raw) return null;
+  const p = new URLSearchParams(raw);
+  const num = (k, d) => (p.has(k) && Number.isFinite(parseFloat(p.get(k))) ? parseFloat(p.get(k)) : d);
+  const str = (k, d) => (p.has(k) ? p.get(k) : d);
+
+  state.totalCartons = num("c", URL_DEFAULTS.c);
+  state.ageRange = str("ar", URL_DEFAULTS.ar);
+  state.duration = num("d", URL_DEFAULTS.d);
+  state.enrollmentPeriod = num("ep", URL_DEFAULTS.ep);
+  state.coverageCap = num("cc", URL_DEFAULTS.cc);
+  state.level = str("lv", URL_DEFAULTS.lv) === "wards" ? "wards" : "lgas";
+  state.useThreshold = num("th", 0) === 1;
+  state.thresholds = { u5mr: num("tu", 0), stunting: num("ts", 0), wasting: num("tw", 0) };
+  state.useManual = num("mn", 0) === 1;
+  state.manual = {};
+  if (p.has("m")) {
+    for (const pair of p.get("m").split(",")) {
+      const i = pair.lastIndexOf(":");
+      if (i > 0) {
+        const name = pair.slice(0, i);
+        const v = parseFloat(pair.slice(i + 1));
+        // Only accept names the dataset actually knows, so a mangled link cannot
+        // inject phantom states.
+        if (DATA.states.includes(name) && Number.isFinite(v)) state.manual[name] = v;
+      }
+    }
+  }
+  state.bugCompat = num("bc", 1) === 1;
+  const sg = str("sg", URL_DEFAULTS.sg);
+  if (STRATEGIES.some((s) => s.id === sg)) state.strategy = sg;
+  if (p.has("ss") && DATA.states.includes(p.get("ss"))) {
+    state.stateSelected = p.get("ss");
+    state.stateTouched = true;
+  }
+  const sc = str("sc", URL_DEFAULTS.sc);
+  return RENDERERS[sc] ? sc : URL_DEFAULTS.sc;
+}
+
+/** Push current state into every control, after restoring from a URL. */
+function syncControls() {
+  $("#in-cartons").value = state.totalCartons;
+  $("#in-age").value = state.ageRange;
+  $("#in-duration").value = state.duration;
+  $("#in-enrol").value = state.enrollmentPeriod;
+  $("#in-cap").value = state.coverageCap;
+  $("#in-level").value = state.level;
+  $("#use-threshold").checked = state.useThreshold;
+  $("#fs-threshold").dataset.active = String(state.useThreshold);
+  $("#th-u5mr").value = state.thresholds.u5mr;
+  $("#th-stunt").value = state.thresholds.stunting;
+  $("#th-wast").value = state.thresholds.wasting;
+  $("#use-manual").checked = state.useManual;
+  $("#fs-manual").dataset.active = String(state.useManual);
+  $("#bug-compat").checked = state.bugCompat;
+  for (const input of $$("[data-manual]")) {
+    input.value = state.manual[input.dataset.manual] ?? 0;
+  }
+  $("#out-strategy").value = state.strategy;
+  $("#st-strategy").value = state.strategy;
+}
+
+async function copyScenarioLink() {
+  writeUrl();
+  const btn = $("#copy-link");
+  const original = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(location.href);
+    btn.textContent = "Link copied";
+  } catch {
+    // Clipboard access can be refused; selecting the URL is the fallback.
+    btn.textContent = "Copy from the address bar";
+  }
+  setTimeout(() => { btn.textContent = original; }, 2200);
 }
 
 /** Fetch boundaries in the background and redraw once they arrive. */
@@ -171,8 +311,10 @@ function manualMap() {
 
 const RENDERERS = {
   inputs: renderInputs, outputs: renderOutputs, comparison: renderComparison,
-  state: renderStateLevel, quant: renderQuant,
+  state: renderStateLevel, quant: renderQuant, assumptions: renderAssumptions,
 };
+/** Supply-curve results, keyed by inputs. Cleared whenever inputs change. */
+const curveCache = {};
 let currentScreen = "inputs";
 const dirty = new Set();
 
@@ -185,8 +327,10 @@ const dirty = new Set();
  */
 function recompute() {
   for (const k of Object.keys(cache)) delete cache[k];
+  for (const k of Object.keys(curveCache)) delete curveCache[k];
   for (const name of Object.keys(RENDERERS)) dirty.add(name);
   renderScreen(currentScreen);
+  writeUrl();
 }
 
 function renderScreen(name) {
@@ -293,6 +437,8 @@ function wireEvents() {
   });
   $("#out-csv").addEventListener("click", downloadStateCsv);
   $("#cmp-currency").addEventListener("change", (e) => { state.currency = e.target.value; renderComparison(); });
+  $("#curve-metric").addEventListener("change", renderSupplyCurve);
+  $("#copy-link").addEventListener("click", copyScenarioLink);
   $("#st-state").addEventListener("change", (e) => {
     state.stateSelected = e.target.value;
     state.stateTouched = true;
@@ -333,6 +479,7 @@ function debounce(fn, ms) {
 
 function show(name) {
   currentScreen = name;
+  writeUrl();
   $$("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.screen === name)));
   $$("section.screen").forEach((s) => (s.hidden = s.id !== `screen-${name}`));
   // Charts size themselves off clientWidth, which reads 0 while hidden, so a
@@ -784,6 +931,8 @@ function renderComparison() {
     return tr;
   }));
 
+  renderSupplyCurve();
+
   // cost-effectiveness
   const c = DATA.constants;
   const perGeo = c.deliveryCostPerChildUsd *
@@ -792,16 +941,128 @@ function renderComparison() {
   const conv = (usd) => (usd == null ? null : cur === "NGN" ? usd * c.ngnPerUsd : usd);
   const money = (usd) => (usd == null ? "n/a" : fmt.money(conv(usd), cur));
 
-  $("#cea-table tbody").replaceChildren(...results.map((r) => {
-    const ce = costEffectiveness(r.totals, c, state.level, perGeo);
+  const cea = results.map((r) => ({
+    meta: r.meta, ...costEffectiveness(r.totals, c, state.level, perGeo),
+  }));
+
+  // Lower is better here, the opposite of the impact chart, so the winner is
+  // marked explicitly rather than left to the reader to invert.
+  const COST_FIELDS = [
+    ["perDeathUsd", "Per death averted"], ["perStuntingUsd", "Per stunting case"],
+    ["perSamUsd", "Per SAM case"], ["perAnemiaUsd", "Per anemia case"],
+    ["perDalyUsd", "Per DALY"],
+  ];
+  const bestOf = {};
+  for (const [field] of COST_FIELDS) {
+    const vals = cea.map((x) => x[field]).filter((v) => v != null && v > 0);
+    bestOf[field] = vals.length ? Math.min(...vals) : null;
+  }
+
+  winnerGroups($("#cea-chart"), [
+    { label: `Cost per DALY averted (${cur})`,
+      bars: cea.map((x) => ({ series: x.meta.label, short: SHORT_NAME[x.meta.id], value: conv(x.perDalyUsd) ?? 0 })) },
+    { label: `Cost per death averted (${cur})`,
+      bars: cea.map((x) => ({ series: x.meta.label, short: SHORT_NAME[x.meta.id], value: conv(x.perDeathUsd) ?? 0 })) },
+  ], { higherIsBetter: false, valueFormat: (v) => fmt.money(v, cur) });
+
+  const cell = (x, field) => {
+    const v = x[field];
+    const isBest = bestOf[field] != null && v != null && nearlyEqual(v, bestOf[field]);
+    return `<td class="num${isBest ? " best-cell" : ""}">${money(v)}` +
+      (isBest ? ' <span class="best-mark">best</span>' : "") + "</td>";
+  };
+
+  $("#cea-table tbody").replaceChildren(...cea.map((x) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td><span class="swatch-inline" style="background:${colors[r.meta.id]}"></span>${r.meta.label}</td>
-      <td class="num">${money(ce.totalUsd)}</td><td class="num">${money(ce.perDeathUsd)}</td>
-      <td class="num">${money(ce.perStuntingUsd)}</td><td class="num">${money(ce.perSamUsd)}</td>
-      <td class="num">${money(ce.perAnemiaUsd)}</td><td class="num">${money(ce.perDalyUsd)}</td>`;
+    tr.innerHTML = `<td><span class="swatch-inline" style="background:${colors[x.meta.id]}"></span>${x.meta.label}</td>
+      <td class="num">${money(x.totalUsd)}</td>` +
+      COST_FIELDS.map(([f]) => cell(x, f)).join("");
     return tr;
   }));
 }
+
+/**
+ * Supply curve: run the allocator across a range of supply levels.
+ *
+ * The single most decision-relevant question is what the next tranche of supply
+ * buys, and that cannot be read off a single-supply view. Impact is sub-linear
+ * because each strategy spends its first cartons on the highest-burden places,
+ * so the curve flattening is the diminishing return made visible.
+ */
+function renderSupplyCurve() {
+  const metric = $("#curve-metric")?.value ?? "deathsAverted";
+  const inputs = allocationInputs();
+  const rows = derivedRows(inputs, `alloc:${inputs.level}:${inputs.ageRange}:${inputs.duration}:${inputs.enrollmentPeriod}:${inputs.coverageCap}`);
+  const nationalNeed = rows.reduce((s, r) => s + r.cartonsNeeded, 0);
+
+  const key = `${inputs.level}:${inputs.ageRange}:${inputs.duration}:${inputs.enrollmentPeriod}:${inputs.coverageCap}:${state.bugCompat}:${inputs.cartonsAllocatedManually}:${JSON.stringify(inputs.thresholds)}`;
+  if (!curveCache[key]) {
+    // 25 points is affordable now that each strategy costs one sort rather than
+    // one per level, and a denser curve shows the knee more clearly.
+    const STEPS = 25;
+    const levels = Array.from({ length: STEPS + 1 }, (_, i) => Math.round((nationalNeed * i) / STEPS));
+    const series = {};
+    for (const s of STRATEGIES) series[s.id] = supplyCurve(rows, s.id, inputs, levels);
+    curveCache[key] = series;
+  }
+  const series = curveCache[key];
+  const colorFor = Object.fromEntries(STRATEGIES.map((s, i) => [s.id, SERIES[i]]));
+
+  lineChart($("#curve-chart"), STRATEGIES.map((s) => ({
+    name: SHORT_NAME[s.id],
+    color: colorFor[s.id],
+    points: series[s.id].map((p) => ({ x: p.x, y: p[metric] })),
+  })), {
+    height: 320, xLabel: "cartons supplied",
+    xFormat: fmt.compact, yFormat: fmt.compact,
+  });
+  legend($("#curve-legend"), STRATEGIES.map((s) => ({ label: s.label, color: colorFor[s.id] })));
+
+  $("#curve-note").textContent =
+    `Plotted from 0 to full national need (${fmt.compact(nationalNeed)} cartons). ` +
+    `Current setting: ${fmt.int(state.totalCartons)}.`;
+}
+
+/**
+ * Cross-check the supply curve against the straightforward implementation.
+ *
+ * supplyCurve derives every level from cumulative sums along one sorted pass.
+ * That is a large speed-up over calling allocate() per level, and exactly the
+ * kind of optimization that can silently change results, so it is checked
+ * against the slow path rather than assumed correct. Exposed for the console;
+ * not part of the render path.
+ */
+window.verifySupplyCurve = function verifySupplyCurve(levelsToCheck = 4) {
+  const inputs = allocationInputs();
+  const rows = derivedRows(inputs, `alloc:${inputs.level}:${inputs.ageRange}:${inputs.duration}:${inputs.enrollmentPeriod}:${inputs.coverageCap}`);
+  const need = rows.reduce((s, r) => s + r.cartonsNeeded, 0);
+  const levels = Array.from({ length: levelsToCheck }, (_, i) => Math.round((need * (i + 1)) / (levelsToCheck + 1)));
+  const report = [];
+
+  for (const s of STRATEGIES) {
+    const fast = supplyCurve(rows, s.id, inputs, levels);
+    levels.forEach((supply, i) => {
+      const alloc = allocate(rows, s.id, { ...inputs, totalCartons: supply });
+      const slow = { deathsAverted: 0, dalysAverted: 0, stuntingAverted: 0, childrenTargeted: 0 };
+      for (const row of rows) {
+        const cartons = alloc.get(row) ?? 0;
+        if (cartons <= 0 || row.cartonsNeeded <= 0) continue;
+        const share = Math.min(cartons / row.cartonsNeeded, 1);
+        slow.deathsAverted += row.deathsAverted * share;
+        slow.dalysAverted += row.dalysAverted * share;
+        slow.stuntingAverted += row.stuntingAverted * share;
+        slow.childrenTargeted += row.popEligible * share;
+      }
+      for (const k of Object.keys(slow)) {
+        const a = fast[i][k], b = slow[k];
+        const err = b === 0 ? Math.abs(a) : Math.abs(a - b) / Math.abs(b);
+        report.push({ strategy: s.id, supply, metric: k, fast: a, slow: b, relErr: err });
+      }
+    });
+  }
+  const worst = report.reduce((m, r) => (r.relErr > m.relErr ? r : m), report[0]);
+  return { checks: report.length, worstRelErr: worst.relErr, worst, pass: worst.relErr < 1e-9 };
+};
 
 /** Workbook 'Hard-coded Inputs' C17/C18: average children in the selected age range. */
 function avgChildrenPerLga() {
@@ -887,6 +1148,129 @@ function renderStateLevel() {
   $("#st-estimated-note").textContent = nEst
     ? `* ${nEst} ward${nEst === 1 ? "" : "s"} in this state had no ward-level match in the source data; the LGA-level estimate was used.`
     : "";
+}
+
+/* ---------------------------------------------------- screen: assumptions */
+
+/**
+ * Every constant, with the source the workbook cites for it.
+ *
+ * A tool that reports "7,251 deaths averted" without letting the reader see the
+ * 0.24 effect size behind it, and where that came from, is asking to be trusted
+ * rather than checked. This screen is static, so it renders once at boot.
+ */
+function renderAssumptions() {
+  const c = DATA.constants;
+  const src = DATA.sources ?? {};
+  const cite = (key) => src[key]?.source ?? null;
+
+  const pct = (v) => (v * 100).toFixed(0) + "%";
+  const ROWS = [
+    ["Treatment effects", null, null, null],
+    ["Effect on under-2 mortality", pct(c.effect.mortality), cite("mortalityEffect")],
+    ["Effect on stunting", pct(c.effect.stunting), cite("stuntingEffect")],
+    ["Effect on SAM", pct(c.effect.sam), cite("samEffect")],
+    ["Effect on anemia", pct(c.effect.anemia), cite("anemiaEffect")],
+
+    ["Discounts applied to effect", null, null, null],
+    ["Product wastage", pct(c.impactDiscount.wastage), cite("wastage")],
+    ["Incomplete consumption", pct(c.impactDiscount.incompleteConsumption), cite("incompleteConsumption")],
+    ["Share of effect retained",
+      pct(1 - c.impactDiscount.wastage - c.impactDiscount.incompleteConsumption),
+      "Calculated: 1 minus the two discounts above"],
+    ["Prorating by supplementation duration", "duration / 12, zero below 3 months",
+      "Workbook step function on 'Hard-coded Inputs' rows 120 to 131"],
+
+    ["DALYs", null, null, null],
+    ["Discount rate", pct(c.daly.discountRate), cite("dalyDiscount")],
+    ["Life expectancy", `${c.daly.lifeExpectancy} years`, cite("lifeExpectancy")],
+    ["Discounted YLL per death", c.daly.yllPerDeath.toFixed(3), cite("deathWeight")],
+    ["Discounted YLD per SAM case", c.daly.yldPerSamCase.toFixed(4), cite("samWeight")],
+    ["Discounted YLD per anemia case", c.daly.yldPerAnemiaCase.toFixed(4), cite("anemiaWeight")],
+
+    ["Product and cost", null, null, null],
+    ["Sachets per carton", fmt.int(c.sachetsPerCarton), cite("sachetsPerCarton")],
+    ["Sachets per child per year", fmt.int(c.sachetsPerChildPerYear), cite("sachetsPerYear")],
+    ["Price per sachet", "$" + c.pricePerSachetUsd.toFixed(2), cite("pricePerSachet")],
+    ["Exchange rate", `NGN ${fmt.int(c.ngnPerUsd)} per USD`, cite("ngnPerUsd")],
+    ["Delivery cost per child", "$" + c.deliveryCostPerChildUsd.toFixed(2), cite("deliveryCostPerChild")],
+
+    ["Population", null, null, null],
+    ["Under-5 share of population", pct(c.u5ShareOfPopulation), cite("u5Share")],
+    ["Share of U5 aged 6 to 23 months", pct(c.ageRangeShare["6 to 23"]), cite("share6to23")],
+    ["Share of U5 aged 6 to 18 months", pct(c.ageRangeShare["6 to 18"]), null],
+    ["Share of U5 aged 6 to 11 months", pct(c.ageRangeShare["6 to 11"]), null],
+  ];
+
+  const tb = $("#assump-table tbody");
+  tb.replaceChildren(...ROWS.map(([label, value, source, isHeading]) => {
+    const tr = document.createElement("tr");
+    if (value === null && source === null) {
+      tr.innerHTML = `<td colspan="3" class="row-heading">${label}</td>`;
+    } else {
+      tr.innerHTML = `<td>${label}</td><td class="num">${value}</td>` +
+        `<td class="small ${source ? "" : "muted"}">${source ?? "Not cited in the source workbook"}</td>`;
+    }
+    return tr;
+  }));
+
+  const uncited = ROWS.filter((r) => r[1] !== null && !r[2]).length;
+  $("#assump-uncited").textContent = uncited
+    ? `${uncited} of these values carry no citation in the source workbook. That is a gap in the source, not in this port.`
+    : "";
+
+  // risk thresholds
+  $("#assump-risk tbody").replaceChildren(...c.riskThresholds.map((t) => {
+    const tr = document.createElement("tr");
+    const dropped = t.level === "1.3" && state.bugCompat;
+    tr.innerHTML = `<td><span class="swatch-inline" style="background:${RISK_COLOR[t.level]}"></span>${t.label} (${t.level})</td>
+      <td class="num">&ge; ${t.u5mr}</td>
+      <td class="num">${dropped ? '<span class="muted">dropped by the defect</span>' : "&ge; " + t.stunting}</td>
+      <td class="num">&ge; ${t.wasting}</td>`;
+    return tr;
+  }));
+
+  // strategies, in the workbook's own words where available
+  const defs = src._strategyDefinitions ?? [];
+  $("#assump-strategies").innerHTML = c.strategies.map((s, i) => `
+    <p style="margin:0 0 10px"><strong>${s.label}</strong><br>
+    <span class="small muted">${defs[i]?.description ?? s.description}</span></p>`).join("");
+
+  $("#assump-defects").innerHTML = `
+    <div class="note warn">
+      <strong>Risk level 1.3 is over-assigned.</strong> The workbook's formula references an
+      empty cell instead of the stunting threshold, so an empty-cell-equals-zero comparison
+      makes that test always true and the tier collapses to under-5 mortality alone.
+      It misclassifies 232 of 9,684 wards and 14 of 774 LGAs, always promoting them into the
+      tier. This one is live in the Google Sheet, not just the export. Reproduced by default;
+      the toggle is on the inputs screen.
+    </div>
+    <div class="note">
+      <strong>Quantification ranges were truncated in the export.</strong> Every range on that
+      sheet covered 90 of 9,684 rows. An artifact of the Google Sheets export rather than a
+      fault in the Sheet, and fixed here.
+    </div>
+    <div class="note">
+      <strong>Averted stunting contributes no DALYs.</strong> The workbook's DALY formula sums
+      deaths, SAM and anemia only. Reproduced as-is, but worth knowing, since a reader would
+      reasonably expect stunting to count.
+    </div>`;
+
+  const estimated = DATA.wards.filter((w) => w.estimated).length;
+  $("#assump-quality").innerHTML = `
+    <p class="small">Ward and LGA figures are resolved from four source datasets: NTD unit
+    population estimates, ANU mortality and stunting estimates, UNICEF wasting data, and
+    state-level anemia prevalence.</p>
+    <ul class="small">
+      <li><strong>${fmt.int(estimated)} of ${fmt.int(DATA.wards.length)} wards</strong>
+      (${fmt.pct(estimated / DATA.wards.length, 1)}) had no ward-level match in the source data,
+      so the LGA-level estimate was used. These are flagged with an asterisk on the
+      state-level screen.</li>
+      <li>Anemia prevalence is <strong>state-level only</strong>, applied uniformly to every
+      ward and LGA within a state. The workbook notes it should be improved.</li>
+      <li>Boundaries are joined by name, since neither source carries admin codes:
+      37 of 37 states and 774 of 774 LGAs matched, 748 exactly and 26 by similarity.</li>
+    </ul>`;
 }
 
 /* -------------------------------------------------- screen: quantification */

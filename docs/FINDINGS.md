@@ -79,8 +79,8 @@ to
 
     U5MR >= 100
 
-Scope: 10,458 affected cells, being every risk-category cell in the workbook. There are
-zero uses of the correct `$D$106`.
+Scope: **20,916 affected cells**, being every risk-category cell in the workbook. There
+are zero uses of the correct `$D$106`.
 
 | Sheet | Dangling refs | Correct refs |
 |---|---|---|
@@ -89,9 +89,9 @@ zero uses of the correct `$D$106`.
 | `LGA Data & Calcs (Allocation)` | 774 | 0 |
 | `LGA Data & Calcs (Quantificatio` | 774 | 0 |
 
-Unlike finding 2, this one is **not** an export artifact. The cached risk categories match
-the buggy rule in 100% of rows (0 mismatches out of 10,458), which proves the live Google
-Sheet computes it this way too.
+Unlike finding 2, this one is **not** an export artifact. On the two allocation sheets,
+Google's own cached risk categories match the buggy rule in 100% of rows (0 disagreements
+out of 10,458 checked), which proves the live Google Sheet computes it this way too.
 
 Impact, recomputed both ways:
 

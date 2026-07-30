@@ -235,6 +235,122 @@ function nearly(a, b) {
   return scale > 0 && Math.abs(a - b) / scale < 5e-4;
 }
 
+/**
+ * Multi-series line chart with a shared crosshair.
+ *
+ * Used for the supply curve, where the question is the shape of the returns
+ * rather than any single point, so lines beat bars. One y-axis only: series must
+ * already share units.
+ *
+ * @param series [{name, color, points:[{x, y}]}]
+ */
+export function lineChart(container, series, { height = 300, xLabel = "", yLabel = "", xFormat = fmt.compact, yFormat = fmt.compact } = {}) {
+  container.replaceChildren();
+  const live = series.filter((s) => s.points.length > 1);
+  if (!live.length) {
+    container.append(Object.assign(document.createElement("p"), {
+      className: "muted small", textContent: "Not enough points to plot.",
+    }));
+    return;
+  }
+
+  const width = Math.max(container.clientWidth || 640, 320);
+  const padL = 62, padR = 16, padT = 12, padB = 40;
+  const plotW = width - padL - padR;
+  const plotH = height - padT - padB;
+
+  const xs = live.flatMap((s) => s.points.map((p) => p.x));
+  const ys = live.flatMap((s) => s.points.map((p) => p.y));
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const yMax = Math.max(...ys) || 1;
+  const sx = (x) => padL + ((x - xMin) / (xMax - xMin || 1)) * plotW;
+  const sy = (y) => padT + plotH - (y / yMax) * plotH;
+
+  const svg = el("svg", {
+    class: "chart", width: "100%", height,
+    viewBox: `0 0 ${width} ${height}`, role: "img",
+    "aria-label": `${yLabel} against ${xLabel}`,
+  });
+
+  // gridlines and y ticks
+  const TICKS = 4;
+  for (let i = 0; i <= TICKS; i++) {
+    const v = (yMax / TICKS) * i;
+    const y = sy(v);
+    svg.append(el("line", { x1: padL, y1: y, x2: padL + plotW, y2: y, class: "grid-line" }));
+    const t = el("text", { x: padL - 8, y: y + 3.5, "text-anchor": "end" });
+    t.textContent = yFormat(v);
+    svg.append(t);
+  }
+  // x ticks at the ends and middle
+  for (const frac of [0, 0.5, 1]) {
+    const v = xMin + (xMax - xMin) * frac;
+    const t = el("text", { x: sx(v), y: height - padB + 18, "text-anchor": frac === 0 ? "start" : frac === 1 ? "end" : "middle" });
+    t.textContent = xFormat(v);
+    svg.append(t);
+  }
+  svg.append(el("line", { x1: padL, y1: padT + plotH, x2: padL + plotW, y2: padT + plotH, class: "axis-line" }));
+
+  if (xLabel) {
+    const l = el("text", { x: padL + plotW / 2, y: height - 4, "text-anchor": "middle" });
+    l.textContent = xLabel;
+    svg.append(l);
+  }
+
+  for (const s of live) {
+    const d = s.points
+      .map((p, i) => `${i === 0 ? "M" : "L"}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`)
+      .join("");
+    svg.append(el("path", { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    // Label the line at its right end, so identity does not depend on the legend.
+    const last = s.points[s.points.length - 1];
+    const tag = el("text", { x: sx(last.x) - 2, y: sy(last.y) - 7, "text-anchor": "end", class: "value-label" });
+    tag.textContent = s.name;
+    svg.append(tag);
+  }
+
+  // Hover: nearest x, tooltip listing every series at that supply level.
+  const hit = el("rect", { x: padL, y: padT, width: plotW, height: plotH, fill: "transparent" });
+  const cross = el("line", { x1: padL, y1: padT, x2: padL, y2: padT + plotH, class: "axis-line", opacity: 0 });
+  svg.append(hit, cross);
+  const dots = live.map((s) => {
+    const c = el("circle", { r: 4, fill: s.color, stroke: "var(--surface-1)", "stroke-width": 2, opacity: 0 });
+    svg.append(c);
+    return c;
+  });
+
+  hit.addEventListener("pointermove", (e) => {
+    const box = svg.getBoundingClientRect();
+    const px = ((e.clientX - box.left) / box.width) * width;
+    const xv = xMin + ((px - padL) / plotW) * (xMax - xMin);
+    let rows = "";
+    live.forEach((s, i) => {
+      let best = s.points[0];
+      for (const p of s.points) if (Math.abs(p.x - xv) < Math.abs(best.x - xv)) best = p;
+      dots[i].setAttribute("cx", sx(best.x));
+      dots[i].setAttribute("cy", sy(best.y));
+      dots[i].setAttribute("opacity", 1);
+      rows += `<div>${s.name}: <strong>${yFormat(best.y)}</strong></div>`;
+    });
+    let nearest = live[0].points[0];
+    for (const p of live[0].points) if (Math.abs(p.x - xv) < Math.abs(nearest.x - xv)) nearest = p;
+    cross.setAttribute("x1", sx(nearest.x));
+    cross.setAttribute("x2", sx(nearest.x));
+    cross.setAttribute("opacity", 0.5);
+    const t = tooltip();
+    t.innerHTML = `<div class="tt-title">${xFormat(nearest.x)} ${xLabel || ""}</div>${rows}`;
+    t.dataset.show = "true";
+    moveTip(e);
+  });
+  hit.addEventListener("pointerleave", () => {
+    cross.setAttribute("opacity", 0);
+    dots.forEach((d) => d.setAttribute("opacity", 0));
+    if (tipEl) tipEl.dataset.show = "false";
+  });
+
+  container.append(svg);
+}
+
 /** Legend. Always present for two or more series. */
 export function legend(container, items) {
   container.replaceChildren();

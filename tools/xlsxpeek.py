@@ -15,7 +15,15 @@ import re
 import sys
 import zipfile
 
-WORKBOOK = r"C:\Users\G09jb\Downloads\SQ-LNS Allocation Tool.xlsx"
+import os
+
+# The source export, or a copy of it. The original was renamed at one point, so
+# resolve against the known candidates rather than a single hard-coded path.
+_CANDIDATES = [
+    r"C:\Users\G09jb\Downloads\SQ-LNS Allocation Tool.xlsx",
+    r"C:\Users\G09jb\Downloads\PARITY TEST COPY - SQ-LNS Allocation Tool (safe to edit).xlsx",
+]
+WORKBOOK = next((p for p in _CANDIDATES if os.path.exists(p)), _CANDIDATES[0])
 
 _ENT = [("&lt;", "<"), ("&gt;", ">"), ("&quot;", '"'), ("&apos;", "'"), ("&amp;", "&")]
 

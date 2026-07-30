@@ -428,6 +428,32 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 .score .who { font-size: 12.5px; color: var(--text-secondary); }
 .score .wins { font-size: 21px; font-weight: 660; letter-spacing: -0.02em; }
 .score .of { font-size: 11.5px; color: var(--text-muted); }
+
+/* Best value in a cost column, where lower wins and the direction is inverted
+   relative to every other chart on the page. */
+td.best-cell { color: var(--accent); font-weight: 650; }
+.best-mark {
+  font-size: 10px;
+  font-weight: 680;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  margin-left: 4px;
+}
+
+/* Section headings inside the assumptions table. */
+td.row-heading {
+  font-weight: 650;
+  color: var(--accent);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-top: 16px;
+  border-bottom: 1px solid var(--axis);
+}
+#assump-table td:nth-child(3) { white-space: normal; max-width: 460px; }
+#screen-assumptions ul { margin: 6px 0 0; padding-left: 20px; }
+#screen-assumptions li { margin-bottom: 5px; }
 .chart text.cat-label { fill: var(--text-secondary); }
 .chart .bar { transition: opacity 0.12s; }
 .chart .bar:hover { opacity: 0.78; }

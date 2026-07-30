@@ -20,6 +20,9 @@
     <button role="tab" data-screen="comparison" aria-selected="false">Strategy comparison</button>
     <button role="tab" data-screen="state" aria-selected="false">State-level allocation</button>
     <button role="tab" data-screen="quant" aria-selected="false">Quantification</button>
+    <button role="tab" data-screen="assumptions" aria-selected="false">Assumptions</button>
+    <span class="spacer"></span>
+    <button class="action" id="copy-link" title="Copy a link that reproduces these exact settings">Copy scenario link</button>
   </nav>
 </header>
 
@@ -252,21 +255,43 @@
     </div>
 
     <div class="card">
+      <h2>Diminishing returns</h2>
+      <p class="small muted" style="margin-top:-8px">
+        What the next tranche of supply buys. Each line is a strategy; the curve
+        flattening means additional cartons are reaching lower-burden places.
+      </p>
+      <div class="row" style="margin-bottom:8px">
+        <label for="curve-metric">Measure</label>
+        <select id="curve-metric">
+          <option value="deathsAverted">Deaths averted</option>
+          <option value="dalysAverted">DALYs averted</option>
+          <option value="stuntingAverted">Stunting cases averted</option>
+          <option value="childrenTargeted">Children targeted</option>
+        </select>
+        <span class="small muted" id="curve-note"></span>
+      </div>
+      <div class="legend" id="curve-legend"></div>
+      <div id="curve-chart"></div>
+    </div>
+
+    <div class="card">
       <h2>Cost-effectiveness</h2>
       <div class="row" style="margin-bottom:10px">
         <label for="cmp-currency">Currency</label>
         <select id="cmp-currency"><option value="USD">USD</option><option value="NGN">NGN</option></select>
-        <span class="small muted">Cost per case averted. Lower is better.</span>
+        <span class="pill">Lower is better</span>
+        <span class="small muted">Direction is inverted from the chart above, so the shortest bar wins here.</span>
       </div>
-      <div class="scroll-x"><table id="cea-table">
+      <div id="cea-chart"></div>
+      <div class="scroll-x" style="margin-top:12px"><table id="cea-table">
         <thead><tr><th>Strategy</th><th class="num">Total cost</th><th class="num">Per death</th>
           <th class="num">Per stunting case</th><th class="num">Per SAM case</th>
           <th class="num">Per anemia case</th><th class="num">Per DALY</th></tr></thead>
         <tbody></tbody>
       </table></div>
       <p class="small muted">
-        Cost is product cost plus a per-geography delivery cost, matching the
-        workbook's formula.
+        Best value in each column is marked. Cost is product cost plus a
+        per-geography delivery cost, matching the workbook's formula.
       </p>
     </div>
   </section>
@@ -380,6 +405,55 @@
     </div>
   </section>
 </main>
+
+  <!-- ------------------------------------------------------------- ASSUMPTIONS -->
+  <section class="screen" id="screen-assumptions" hidden>
+    <div class="card">
+      <h2>What these numbers rest on</h2>
+      <p class="small muted" style="margin-top:-8px">
+        Every constant the model uses, with the source the workbook cites for it.
+        Nothing here is editable: these are structural to the model, and changing
+        one changes every figure on every screen.
+      </p>
+      <div class="scroll-x"><table id="assump-table">
+        <thead><tr><th>Input</th><th class="num">Value</th><th>Source</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <p class="small muted" id="assump-uncited"></p>
+    </div>
+
+    <div class="card">
+      <h2>Risk categories</h2>
+      <p class="small muted" style="margin-top:-8px">
+        A geography takes the first tier it qualifies for. Mortality is necessary,
+        plus at least one of stunting or wasting.
+      </p>
+      <div class="scroll-x"><table id="assump-risk">
+        <thead><tr><th>Tier</th><th class="num">U5 mortality (per 1,000)</th>
+          <th class="num">Stunting (%)</th><th class="num">Wasting (%)</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <h2>How each strategy allocates</h2>
+      <div id="assump-strategies"></div>
+    </div>
+
+    <div class="card">
+      <h2>Known defects in the source model</h2>
+      <p class="small muted" style="margin-top:-8px">
+        Found while porting the workbook. Both are documented in full in the
+        repository.
+      </p>
+      <div id="assump-defects"></div>
+    </div>
+
+    <div class="card">
+      <h2>Data quality</h2>
+      <div id="assump-quality"></div>
+    </div>
+  </section>
 
 <footer>
   <p class="small muted" id="attribution"></p>

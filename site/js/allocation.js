@@ -156,6 +156,111 @@ export function allocate(rows, strategy, inputs) {
   return allocatePool(rows, specs.global, manual, pool, gated);
 }
 
+/** Metrics the supply curve reports, mapped to the row field they sum. */
+const CURVE_METRICS = {
+  deathsAverted: "deathsAverted",
+  stuntingAverted: "stuntingAverted",
+  samAverted: "samAverted",
+  anemiaAverted: "anemiaAverted",
+  dalysAverted: "dalysAverted",
+  childrenTargeted: "popEligible",
+};
+
+/**
+ * Impact across many supply levels, in one pass per strategy.
+ *
+ * Calling allocate() once per supply level is the obvious approach and far too
+ * slow: 13 levels x 4 strategies at ward level is 52 sorts of 9,684 rows, which
+ * measured at 7.8 seconds of blocked UI.
+ *
+ * The key observation is that supply does not affect the priority order, only
+ * how far down it the money reaches. So sort once, build cumulative need and
+ * cumulative impact along that order, and every supply level is then a prefix
+ * lookup plus one partially funded geography.
+ *
+ * Equal distribution is analytic rather than a prefix: it gives every geography
+ * the same fraction of its need, `supply / totalNeed`, so its impact is exactly
+ * linear in supply. That is also why it performs worst, since it does no
+ * targeting at all.
+ *
+ * @param levels ascending supply values
+ * @returns [{x, deathsAverted, ...}] one entry per level
+ */
+export function supplyCurve(rows, strategy, inputs, levels) {
+  const keys = Object.keys(CURVE_METRICS);
+  const zero = () => Object.fromEntries(keys.map((k) => [k, 0]));
+
+  if (strategy === "equal") {
+    const totalNeed = rows.reduce((s, r) => s + r.cartonsNeeded, 0);
+    const full = zero();
+    for (const r of rows) for (const k of keys) full[k] += r[CURVE_METRICS[k]];
+    return levels.map((x) => {
+      const share = totalNeed > 0 ? Math.min(x / totalNeed, 1) : 0;
+      const out = { x };
+      for (const k of keys) out[k] = full[k] * share;
+      return out;
+    });
+  }
+
+  const specs = SORTS[strategy];
+  if (!specs) throw new Error(`unknown strategy: ${strategy}`);
+  const gated = strategy === "threshold";
+  if (gated) for (const row of rows) row.meetsThreshold = meetsThreshold(row, inputs.thresholds);
+
+  // Manual allocation is fixed: it does not vary with total supply.
+  const manual = allocateManual(rows, specs.byState, inputs.manualByState, gated);
+  const manualImpact = zero();
+  for (const row of rows) {
+    const give = manual.get(row) ?? 0;
+    if (give <= 0 || row.cartonsNeeded <= 0) continue;
+    const share = Math.min(give / row.cartonsNeeded, 1);
+    for (const k of keys) manualImpact[k] += row[CURVE_METRICS[k]] * share;
+  }
+
+  // Walk the global priority order once, accumulating fundable need and the
+  // impact that funding it would buy.
+  const ordered = sortBy(rows, specs.global);
+  const cumNeed = [0];
+  const cumImpact = [zero()];
+  const perRow = [];
+  for (const row of ordered) {
+    const manualHere = manual.get(row) ?? 0;
+    const canTake = !gated || row.meetsThreshold;
+    const fundable = canTake ? Math.max(0, row.cartonsNeeded - manualHere) : 0;
+    perRow.push({ row, fundable });
+    const prev = cumImpact[cumImpact.length - 1];
+    const next = { ...prev };
+    if (fundable > 0 && row.cartonsNeeded > 0) {
+      const share = fundable / row.cartonsNeeded;
+      for (const k of keys) next[k] = prev[k] + row[CURVE_METRICS[k]] * share;
+    }
+    cumImpact.push(next);
+    cumNeed.push(cumNeed[cumNeed.length - 1] + fundable);
+  }
+
+  const pool = (supply) => Math.max(0, supply - (inputs.cartonsAllocatedManually ?? 0));
+  return levels.map((x) => {
+    let budget = pool(x);
+    // Largest prefix fully affordable. cumNeed is non-decreasing, so binary search.
+    let lo = 0, hi = cumNeed.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (cumNeed[mid] <= budget) lo = mid; else hi = mid - 1;
+    }
+    const out = { x };
+    for (const k of keys) out[k] = manualImpact[k] + cumImpact[lo][k];
+
+    // The next geography takes whatever remains.
+    const leftover = budget - cumNeed[lo];
+    const nextRow = perRow[lo];
+    if (leftover > 0 && nextRow && nextRow.fundable > 0 && nextRow.row.cartonsNeeded > 0) {
+      const share = Math.min(leftover, nextRow.fundable) / nextRow.row.cartonsNeeded;
+      for (const k of keys) out[k] += nextRow.row[CURVE_METRICS[k]] * share;
+    }
+    return out;
+  });
+}
+
 /**
  * Run every strategy and attach per-row impact.
  * @returns { [strategyId]: { rows: [{row, ...impact}], totals } }
