@@ -19,12 +19,26 @@
   --good: #0ca30c;
   --warning: #fab219;
   --critical: #d03b3b;
-  /* ordinal ramp for the five risk levels, worst to mildest */
+  /* Ordinal ramp for the five risk levels, worst to mildest. Darker means more
+     severe, the conventional reading. Deliberately NOT flipped in dark mode:
+     the same map must not mean opposite things depending on theme, so maps sit
+     on their own light plate (--map-plate) in both themes and this ramp holds. */
+  /* Five ordinal steps. Unlike a sequential ramp, the step nearest the surface
+     must still clear 2:1 against it, so the light end stops at a mid blue rather
+     than fading toward the plate. */
   --risk-1-1: #0d366b;
-  --risk-1-2: #184f95;
-  --risk-1-3: #256abf;
-  --risk-2: #3987e5;
-  --risk-3: #86b6ef;
+  --risk-1-2: #1a5093;
+  --risk-1-3: #2a72c4;
+  --risk-2: #4b8ad8;
+  --risk-3: #6ba6e8;
+  /* Grey, not a ramp step: "no category" is a different kind of thing from
+     "lowest category", and the hue carries that distinction. */
+  --risk-none: #cbd0d7;
+  /* Light ground for map surfaces, in both themes. */
+  --map-plate: #f2f5f9;
+  --map-plate-border: rgba(11, 11, 11, 0.12);
+  /* Recessive fill for bars that are not the winner. */
+  --bar-muted: #c8d4e2;
   --radius: 8px;
   --font: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -46,11 +60,9 @@
     --series-4: #c98500;
     --accent: #3987e5;
     --accent-wash: #16283f;
-    --risk-1-1: #cde2fb;
-    --risk-1-2: #9ec5f4;
-    --risk-1-3: #6da7ec;
-    --risk-2: #3987e5;
-    --risk-3: #184f95;
+    --bar-muted: #3a4a5c;
+    /* The risk ramp and the map plate are intentionally not overridden here.
+       See the note beside their definitions. */
   }
 }
 
@@ -246,14 +258,23 @@ section.screen[hidden] { display: none; }
   transform: translate(var(--tx), var(--ty)) scale(0.94);
   transform-origin: center;
   transform-box: fill-box;
+  /* 3.5x slower than the first cut, which read as a snap rather than a settle.
+     The stagger in hero.js is scaled by the same factor, so the cascade keeps
+     its shape and only the overall pace changes. */
   transition:
-    opacity 620ms cubic-bezier(0.22, 0.9, 0.28, 1) var(--delay),
-    transform 780ms cubic-bezier(0.22, 1.1, 0.32, 1) var(--delay);
+    opacity 2170ms cubic-bezier(0.22, 0.9, 0.28, 1) var(--delay),
+    transform 2730ms cubic-bezier(0.22, 1.1, 0.32, 1) var(--delay);
 }
 .hero-map.assembled .hero-piece {
   opacity: 1;
   transform: translate(0, 0) scale(1);
-  /* Once settled, drift almost imperceptibly so the scene stays alive. */
+}
+
+/* The drift is held back until the assembly has finished, and applied by a
+   second class. CSS animations override transitions on the same property, so
+   attaching it alongside .assembled would let the keyframes seize `transform`
+   immediately and the fly-in would never render, leaving only the fade. */
+.hero-map.drifting .hero-piece {
   animation: hero-drift 9s ease-in-out infinite;
   animation-delay: var(--float-delay);
 }
@@ -385,12 +406,43 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 .chart .axis-line { stroke: var(--axis); stroke-width: 1; }
 .chart text { fill: var(--text-muted); font-size: 11px; font-family: var(--font); }
 .chart text.value-label { fill: var(--text-secondary); font-weight: 600; }
+.chart text.group-heading {
+  fill: var(--text-primary);
+  font-weight: 650;
+  font-size: 12px;
+}
+.chart text.best-tag { fill: var(--accent); font-weight: 680; font-size: 10.5px; }
+.chart text.gap-tag { fill: var(--text-muted); font-size: 10.5px; }
+.chart .bar-best { filter: saturate(1.05); }
+
+/* Scoreboard above the comparison chart. */
+.scoreboard { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 16px; }
+.score {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 9px 13px;
+  min-width: 132px;
+  background: var(--surface-1);
+}
+.score.leader { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.score .who { font-size: 12.5px; color: var(--text-secondary); }
+.score .wins { font-size: 21px; font-weight: 660; letter-spacing: -0.02em; }
+.score .of { font-size: 11.5px; color: var(--text-muted); }
 .chart text.cat-label { fill: var(--text-secondary); }
 .chart .bar { transition: opacity 0.12s; }
 .chart .bar:hover { opacity: 0.78; }
 
+/* Maps keep a light ground in both themes, so "darker means more severe" reads
+   correctly and does not invert with the page theme. */
+#state-map, #st-map, .hero-plate {
+  background: var(--map-plate);
+  border: 1px solid var(--map-plate-border);
+  border-radius: 10px;
+  padding: 6px;
+}
+.hero-plate { padding: 8px 8px 10px; }
 .chart.map .region { transition: opacity 0.1s; }
-.chart.map .region:hover { opacity: 0.78; stroke: var(--text-primary); stroke-width: 1.2; }
+.chart.map .region:hover { opacity: 0.82; stroke: #0b0b0b; stroke-width: 1.2; }
 
 footer { padding: 0 24px 34px; max-width: 1280px; margin: 0 auto; }
 footer p { margin: 0; }

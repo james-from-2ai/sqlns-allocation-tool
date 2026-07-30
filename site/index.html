@@ -34,7 +34,7 @@
         <!-- Drop an official logo at site/img/logo.svg (or .png) and it appears
              here; the block stays hidden until then. See README. -->
         <img id="hero-logo" class="hero-logo" src="img/logo.svg" alt="Evidence Action" hidden>
-        <p class="hero-eyebrow">Evidence Action &middot; AI Access Initiative</p>
+        <p class="hero-eyebrow">SQ-LNS &middot; Grace Hultquist</p>
         <h2 class="hero-title">SQ-LNS Allocation Tool</h2>
         <p class="hero-lede">
           Where should small-quantity lipid-based nutrient supplements go? Compare
@@ -47,8 +47,12 @@
         </p>
       </div>
       <div class="hero-figure">
-        <div id="hero-map"></div>
-        <p class="hero-caption" id="hero-caption"></p>
+        <!-- The plate wraps the map and its legend: the risk ramp is dark-on-light,
+             so its swatches would vanish against the navy panel. -->
+        <div class="hero-plate">
+          <div id="hero-map"></div>
+          <p class="hero-caption" id="hero-caption"></p>
+        </div>
       </div>
     </div>
 
@@ -225,13 +229,15 @@
   <!-- ---------------------------------------------------- STRATEGY COMPARISON -->
   <section class="screen" id="screen-comparison" hidden>
     <div class="card">
-      <h2>Impact comparison</h2>
+      <h2>Which strategy wins</h2>
       <p class="small muted" style="margin-top:-8px">
-        Each measure is scaled within its own row, so bars compare strategies,
-        not measures. Printed values carry the magnitude.
+        Strategies are ranked within each measure, best first, and each other bar
+        shows how far short it falls. Bar length is scaled within its own measure,
+        so lengths compare strategies, never measures.
       </p>
-      <div class="legend" id="cmp-legend"></div>
+      <div class="scoreboard" id="cmp-scoreboard"></div>
       <div id="cmp-chart"></div>
+      <p class="small muted" id="cmp-caveat"></p>
     </div>
 
     <div class="card">

@@ -20,17 +20,17 @@ const el = (n, a = {}) => {
   return node;
 };
 
-// Sequential blue, light to dark. Mirrors the --seq-* custom properties.
-const RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#0d366b"];
-const RAMP_DARK = ["#0d366b", "#184f95", "#256abf", "#3987e5", "#6da7ec", "#9ec5f4"];
-const NEUTRAL = "var(--grid)";
+/**
+ * Sequential blue, light to dark, so a larger value is a darker fill. This is
+ * the conventional reading and it is deliberately mode-invariant: maps render on
+ * their own light plate (--map-plate) in both themes, so the same shade always
+ * means the same magnitude. Flipping the ramp for dark mode would make one map
+ * mean opposite things to two readers looking at the same figure.
+ */
+const RAMP = ["#dce9f9", "#b9d6f7", "#8cbcf0", "#5c9ae4", "#2f74c8", "#0d366b"];
 
-function isDark() {
-  const stamped = document.documentElement.dataset.theme;
-  if (stamped === "dark") return true;
-  if (stamped === "light") return false;
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
-}
+/** Nothing allocated. A grey, so it never reads as a step on the ramp. */
+const NEUTRAL = "#d8dbe0";
 
 /* ----------------------------------------------------------- projection */
 
@@ -167,7 +167,7 @@ export function choropleth(container, features, valueOf, opts = {}) {
   const b = bounds(features);
   const h = fittedHeight(b, width, height);
   const project = projector(b, width, h);
-  const scale = quantileScale(features.map(valueOf), isDark() ? RAMP_DARK : RAMP);
+  const scale = quantileScale(features.map(valueOf), RAMP);
 
   const svg = el("svg", {
     class: "chart map", width: "100%", height: h,
@@ -180,7 +180,7 @@ export function choropleth(container, features, valueOf, opts = {}) {
     const path = el("path", {
       d: pathFor(f.geometry, project),
       fill: scale.colorOf(v),
-      stroke: "var(--surface-1)",
+      stroke: "var(--map-plate)",
       "stroke-width": 0.6,
       class: "region",
     });
@@ -237,7 +237,7 @@ export function categoryChoropleth(container, features, categoryOf, colorMap, op
     const path = el("path", {
       d: pathFor(f.geometry, project),
       fill: colorMap[cat] ?? NEUTRAL,
-      stroke: "var(--surface-1)", "stroke-width": 0.6, class: "region",
+      stroke: "var(--map-plate)", "stroke-width": 0.6, class: "region",
     });
     const extra = detail(f);
     attachTip(path, `<div class="tt-title">${label(f)}</div>${cat}${extra ? "<br>" + extra : ""}`);

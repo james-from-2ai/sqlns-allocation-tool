@@ -153,51 +153,86 @@ export function barChart(container, items, { valueFormat = fmt.compact, labelWid
 }
 
 /**
- * Grouped bars: one group per metric, one bar per series.
- * Used for the strategy comparison, where four strategies are compared across
- * several impact measures. Each metric is normalized within its own group,
- * because the measures are on different scales; the printed value carries the
- * magnitude. This avoids a second y-axis, which the method forbids.
+ * Winner-oriented comparison. One group per measure, one bar per strategy.
  *
- * @param groups [{label, bars:[{series, value, color}]}]
+ * Colour here would encode identity, but the question this chart answers is
+ * rank, so identity moves to a direct row label and colour is spent on the
+ * winner instead. Bars are sorted within each group so the best is always on
+ * top, and each other bar is annotated with its shortfall, because the values
+ * are close enough that bar length alone cannot carry the difference.
+ *
+ * @param groups [{label, bars:[{series, short, value}]}]
+ * @param opts.higherIsBetter false for cost measures, where the lowest wins
  */
-export function groupedBars(container, groups, { valueFormat = fmt.compact, labelWidth = 178, barH = 15, barGap = 3, groupGap = 20 } = {}) {
+export function winnerGroups(container, groups, { valueFormat = fmt.compact, labelWidth = 96, barH = 17, barGap = 4, groupGap = 22, higherIsBetter = true } = {}) {
   container.replaceChildren();
+  if (!groups.length) return;
+
   const width = Math.max(container.clientWidth || 640, 320);
-  const rightPad = 74;
-  labelWidth = Math.min(labelWidth, width * 0.4);
-  const plotW = Math.max(width - labelWidth - rightPad, 80);
+  labelWidth = Math.min(labelWidth, width * 0.28);
+  const rightPad = 128;
+  const plotW = Math.max(width - labelWidth - rightPad, 90);
   const nBars = groups[0]?.bars.length ?? 0;
   const groupH = nBars * barH + (nBars - 1) * barGap;
-  const height = groups.length * (groupH + groupGap) + 8;
+  const height = groups.length * (groupH + groupGap) + 26;
 
-  const svg = el("svg", {
-    class: "chart", width: "100%", height,
-    viewBox: `0 0 ${width} ${height}`, role: "img",
-  });
+  const svg = el("svg", { class: "chart", width: "100%", height, viewBox: `0 0 ${width} ${height}`, role: "img" });
 
-  let y = 4;
+  let y = 6;
   for (const g of groups) {
-    const max = Math.max(...g.bars.map((b) => b.value), 0) || 1;
+    const values = g.bars.map((b) => b.value);
+    const best = higherIsBetter ? Math.max(...values) : Math.min(...values);
+    const scaleMax = Math.max(...values) || 1;
+    // Ranked, best first. A tie keeps its input order, which is stable.
+    const ranked = [...g.bars].sort((a, b) => (higherIsBetter ? b.value - a.value : a.value - b.value));
+    const tied = ranked.filter((b) => nearly(b.value, best)).length > 1;
 
-    svg.append(catLabel(g.label, labelWidth - 10, y + groupH / 2 + 4, labelWidth - 10));
+    const heading = el("text", { x: 0, y: y - 6, class: "group-heading" });
+    heading.textContent = g.label;
+    svg.append(heading);
 
-    g.bars.forEach((b, i) => {
+    ranked.forEach((b, i) => {
       const by = y + i * (barH + barGap);
-      const w = Math.max((b.value / max) * plotW, b.value > 0 ? 2 : 0);
-      const bar = el("rect", { x: labelWidth, y: by, width: w, height: barH, rx: 4, fill: b.color, class: "bar" });
-      attachTip(bar, `<div class="tt-title">${b.series}</div>${g.label}: ${valueFormat(b.value)}`);
+      const isBest = nearly(b.value, best);
+      const w = Math.max((b.value / scaleMax) * plotW, b.value > 0 ? 2 : 0);
+
+      svg.append(catLabel(b.short ?? b.series, labelWidth - 8, by + barH / 2 + 4, labelWidth - 8));
+
+      const bar = el("rect", {
+        x: labelWidth, y: by, width: w, height: barH, rx: 4,
+        fill: isBest ? "var(--accent)" : "var(--bar-muted)",
+        class: "bar" + (isBest ? " bar-best" : ""),
+      });
+      const gap = best === 0 ? 0 : (b.value - best) / Math.abs(best);
+      attachTip(bar,
+        `<div class="tt-title">${b.series}</div>${g.label}: ${valueFormat(b.value)}` +
+        (isBest ? `<br>best${tied ? " (tied)" : ""}` : `<br>${fmt.pct(Math.abs(gap), 1)} ${higherIsBetter ? "lower" : "higher"} than best`));
       svg.append(bar);
 
-      const val = el("text", { x: labelWidth + w + 7, y: by + barH / 2 + 4, class: "value-label" });
+      const val = el("text", { x: labelWidth + w + 8, y: by + barH / 2 + 4, class: "value-label" });
       val.textContent = valueFormat(b.value);
       svg.append(val);
+
+      const note = el("text", {
+        x: width - 4, y: by + barH / 2 + 4, "text-anchor": "end",
+        class: isBest ? "best-tag" : "gap-tag",
+      });
+      note.textContent = isBest
+        ? (tied ? "tied best" : "best")
+        : (Math.abs(gap) < 0.001 ? "" : `${gap > 0 ? "+" : "−"}${fmt.pct(Math.abs(gap), gap > -0.1 ? 1 : 0)}`);
+      svg.append(note);
     });
 
-    svg.append(el("line", { x1: labelWidth, y1: y - 4, x2: labelWidth, y2: y + groupH + 4, class: "axis-line" }));
     y += groupH + groupGap;
   }
   container.append(svg);
+}
+
+/** Values within a hair of each other count as tied, after float error. */
+function nearly(a, b) {
+  if (a === b) return true;
+  const scale = Math.max(Math.abs(a), Math.abs(b));
+  return scale > 0 && Math.abs(a - b) / scale < 5e-4;
 }
 
 /** Legend. Always present for two or more series. */

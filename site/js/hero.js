@@ -24,7 +24,7 @@
  * Seeded rather than Math.random, so a given build always looks the same and a
  * visual regression is a real change rather than noise.
  */
-export function heroDots(container, count = 58) {
+export function heroDots(container, count = 73) {
   container.replaceChildren();
   let seed = 20260729;
   const rand = () => {
@@ -52,11 +52,11 @@ export function heroDots(container, count = 58) {
       dot.style.setProperty(`--y${n}`, `${between(-reach, reach).toFixed(1)}px`);
     }
     // A shorter period is a faster drift, since the path length is unchanged.
-    // Range chosen so the realized mean over this seed's draws lands at 44.8s,
-    // a true 25% speed-up on the original 56.0s mean. Scaling the range bounds
-    // alone would have given 20.7%, because the draws do not average to the
-    // range midpoint.
-    dot.style.setProperty("--dur", `${between(26.3, 60.3).toFixed(1)}s`);
+    // The bounds are solved rather than scaled: the seeded draws do not average
+    // to the range midpoint, and the dot count changes how many are taken, so
+    // scaling alone undershoots the intended speed. This range yields a realized
+    // mean of 14.9s over 73 dots.
+    dot.style.setProperty("--dur", `${between(8.8, 20.2).toFixed(1)}s`);
     dot.style.setProperty("--delay", `-${between(0, 60).toFixed(1)}s`);
     dot.style.setProperty("--twinkle", `${between(5, 13).toFixed(1)}s`);
     dot.style.setProperty("--peak", between(0.14, 0.5).toFixed(2));
@@ -124,6 +124,7 @@ export function heroMap(container, states, riskOf, colorOf) {
 
   const cx = W / 2;
   const cy = H / 2;
+  let maxDelay = 0;
 
   states.forEach((f, i) => {
     const parts = [];
@@ -160,7 +161,11 @@ export function heroMap(container, states, riskOf, colorOf) {
     path.style.setProperty("--tx", `${tx.toFixed(1)}px`);
     path.style.setProperty("--ty", `${ty.toFixed(1)}px`);
     // Stagger by distance from the centre, so it reads as settling inward.
-    path.style.setProperty("--delay", `${(80 + dist * 3.2).toFixed(0)}ms`);
+    // Scaled with the transition duration in styles.css; changing one without
+    // the other alters the choreography rather than just the pace.
+    const delay = 280 + dist * 11.2;
+    maxDelay = Math.max(maxDelay, delay);
+    path.style.setProperty("--delay", `${delay.toFixed(0)}ms`);
     path.style.setProperty("--float-delay", `${(i * 137) % 4000}ms`);
 
     const title = el("title");
@@ -180,4 +185,9 @@ export function heroMap(container, states, riskOf, colorOf) {
   const reveal = () => svg.classList.add("assembled");
   requestAnimationFrame(() => requestAnimationFrame(reveal));
   setTimeout(reveal, 120);
+
+  // Start the idle drift only once every piece has settled, for the reason given
+  // beside `.hero-map.drifting` in styles.css. 2730ms is the transform
+  // transition; maxDelay is the largest stagger issued above.
+  setTimeout(() => svg.classList.add("drifting"), maxDelay + 2730 + 60);
 }

@@ -6,7 +6,7 @@
 import { programParams, deriveRow } from "./engine.js";
 import { allocate, totalsOf, costEffectiveness, meetsThreshold } from "./allocation.js";
 import { byRiskCategory, byThreshold, byImpactTarget, costing } from "./quantification.js";
-import { barChart, groupedBars, stackedBar, legend, fmt } from "./charts.js";
+import { barChart, winnerGroups, stackedBar, legend, fmt } from "./charts.js";
 import { choropleth, categoryChoropleth } from "./maps.js";
 import { heroMap, heroDots } from "./hero.js";
 
@@ -14,25 +14,30 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
 
 const SERIES = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)"];
-const RISK_COLOR = {
-  "1.1": "var(--risk-1-1)", "1.2": "var(--risk-1-2)", "1.3": "var(--risk-1-3)",
-  "2": "var(--risk-2)", "3": "var(--risk-3)", "Not Classified": "var(--axis)",
+
+/** Short forms, so the comparison chart can label bars directly instead of
+ *  sending the reader to a legend. */
+const SHORT_NAME = {
+  mortality: "U2 deaths",
+  stunting: "Stunting",
+  threshold: "Threshold",
+  equal: "Equal",
 };
 
+/** Two totals within a hair of each other are a tie, after float error. */
+function nearlyEqual(a, b) {
+  if (a === b) return true;
+  const scale = Math.max(Math.abs(a), Math.abs(b));
+  return scale > 0 && Math.abs(a - b) / scale < 5e-4;
+}
 /**
- * The hero sits on a fixed dark navy panel, so it cannot borrow the themed risk
- * ramp: in light mode those steps are dark blues, and the worst category
- * (#0d366b) resolves to 1.31:1 against the hero background, rendering the
- * highest-risk states nearly invisible. This ramp runs light to dark so severity
- * increases with prominence, and holds regardless of page theme.
+ * Risk shading: darker means more severe, the conventional reading. One ramp
+ * serves every map, including the hero, because they all render on a light plate
+ * regardless of page theme. See the note in styles.css.
  */
-const HERO_RISK = {
-  "1.1": "#dbe9fc",
-  "1.2": "#a8cbf6",
-  "1.3": "#74a9ee",
-  "2": "#4585dc",
-  "3": "#2b62a8",
-  "Not Classified": "rgba(255,255,255,0.13)",
+const RISK_COLOR = {
+  "1.1": "var(--risk-1-1)", "1.2": "var(--risk-1-2)", "1.3": "var(--risk-1-3)",
+  "2": "var(--risk-2)", "3": "var(--risk-3)", "Not Classified": "var(--risk-none)",
 };
 
 let DATA;          // base.json
@@ -50,7 +55,7 @@ async function boot() {
   STRATEGIES = DATA.constants.strategies;
 
   state = {
-    totalCartons: 10000,
+    totalCartons: 750000,
     ageRange: "6 to 23",
     duration: 6,
     enrollmentPeriod: 6,
@@ -541,7 +546,7 @@ function renderHero() {
   }
 
   heroMap($("#hero-map"), GEO.states, (s) => worst[s] ?? "Not Classified",
-    (level) => HERO_RISK[level] ?? HERO_RISK["Not Classified"]);
+    (level) => RISK_COLOR[level] ?? RISK_COLOR["Not Classified"]);
 
   const totalNeed = rows.reduce((s, r) => s + r.cartonsNeeded, 0);
   const children = rows.reduce((s, r) => s + r.popEligible, 0);
@@ -559,7 +564,7 @@ function renderHero() {
   const order = [...DATA.constants.riskThresholds, { level: "Not Classified", label: "Unclassified" }];
   const swatches = order
     .filter((t) => present.has(t.level))
-    .map((t) => `<span class="hero-key"><i style="background:${HERO_RISK[t.level]}"></i>${t.label}</span>`)
+    .map((t) => `<span class="hero-key"><i style="background:${RISK_COLOR[t.level]}"></i>${t.label}</span>`)
     .join("");
   $("#hero-caption").innerHTML =
     `<span class="hero-caption-label">Highest risk category present, by state</span>` +
@@ -729,17 +734,43 @@ function renderComparison() {
   const results = STRATEGIES.map((s) => ({ meta: s, ...currentAllocation(s.id) }));
   const colors = Object.fromEntries(STRATEGIES.map((s, i) => [s.id, SERIES[i]]));
 
-  legend($("#cmp-legend"), STRATEGIES.map((s) => ({ label: s.label, color: colors[s.id] })));
-
   const METRICS = [
     ["Deaths averted", "deathsAverted"], ["Stunting cases averted", "stuntingAverted"],
     ["SAM cases averted", "samAverted"], ["Anemia cases averted", "anemiaAverted"],
     ["DALYs averted", "dalysAverted"], ["Children targeted", "childrenTargeted"],
   ];
-  groupedBars($("#cmp-chart"), METRICS.map(([label, field]) => ({
+  const groups = METRICS.map(([label, field]) => ({
     label,
-    bars: results.map((r) => ({ series: r.meta.label, value: r.totals[field], color: colors[r.meta.id] })),
-  })));
+    bars: results.map((r) => ({
+      series: r.meta.label, short: SHORT_NAME[r.meta.id], value: r.totals[field],
+    })),
+  }));
+  winnerGroups($("#cmp-chart"), groups);
+
+  // Scoreboard: how many measures each strategy leads. Ties count for everyone
+  // tied, so the totals can exceed the number of measures.
+  const wins = Object.fromEntries(STRATEGIES.map((s) => [s.id, 0]));
+  let tiedMeasures = 0;
+  for (const [, field] of METRICS) {
+    const best = Math.max(...results.map((r) => r.totals[field]));
+    const leaders = results.filter((r) => nearlyEqual(r.totals[field], best));
+    if (leaders.length > 1) tiedMeasures++;
+    for (const r of leaders) wins[r.meta.id]++;
+  }
+  const topWins = Math.max(...Object.values(wins));
+  $("#cmp-scoreboard").innerHTML = STRATEGIES.map((s) => {
+    const n = wins[s.id];
+    return `<div class="score${n === topWins && n > 0 ? " leader" : ""}">
+      <div class="who">${s.label}</div>
+      <div class="wins">${n}</div>
+      <div class="of">of ${METRICS.length} measures led</div>
+    </div>`;
+  }).join("");
+
+  $("#cmp-caveat").textContent = tiedMeasures
+    ? `${tiedMeasures} of ${METRICS.length} measures are tied at the top, which is expected: ` +
+      `every strategy allocates the same total supply, so they differ in where it goes, not how much.`
+    : "";
 
   $("#cmp-table tbody").replaceChildren(...results.map((r) => {
     const t = r.totals;
