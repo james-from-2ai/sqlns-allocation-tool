@@ -12,6 +12,54 @@
  * prefers-reduced-motion.
  */
 
+/**
+ * Drifting dots behind the hero.
+ *
+ * Each dot wanders through four random waypoints and returns to its start, so
+ * the loop never visibly jumps. One shared keyframe reads per-dot custom
+ * properties, which avoids generating N stylesheets and keeps everything on the
+ * compositor: there is no per-frame JavaScript, so this costs nothing to run and
+ * the browser throttles it while the hero is off-screen.
+ *
+ * Seeded rather than Math.random, so a given build always looks the same and a
+ * visual regression is a real change rather than noise.
+ */
+export function heroDots(container, count = 46) {
+  container.replaceChildren();
+  let seed = 20260729;
+  const rand = () => {
+    // mulberry32
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const between = (lo, hi) => lo + rand() * (hi - lo);
+
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < count; i++) {
+    const dot = document.createElement("span");
+    dot.className = "hero-dot";
+    const size = between(1, 2.6);
+    dot.style.width = `${size.toFixed(2)}px`;
+    dot.style.height = `${size.toFixed(2)}px`;
+    dot.style.left = `${between(0, 100).toFixed(2)}%`;
+    dot.style.top = `${between(0, 100).toFixed(2)}%`;
+    // Larger dots read as nearer, so let them drift further and glow slightly more.
+    const reach = 16 + (size / 2.6) * 42;
+    for (const n of [1, 2, 3]) {
+      dot.style.setProperty(`--x${n}`, `${between(-reach, reach).toFixed(1)}px`);
+      dot.style.setProperty(`--y${n}`, `${between(-reach, reach).toFixed(1)}px`);
+    }
+    dot.style.setProperty("--dur", `${between(34, 78).toFixed(1)}s`);
+    dot.style.setProperty("--delay", `-${between(0, 60).toFixed(1)}s`);
+    dot.style.setProperty("--twinkle", `${between(5, 13).toFixed(1)}s`);
+    dot.style.setProperty("--peak", between(0.14, 0.5).toFixed(2));
+    frag.append(dot);
+  }
+  container.append(frag);
+}
+
 const SVG = "http://www.w3.org/2000/svg";
 const el = (n, a = {}) => {
   const node = document.createElementNS(SVG, n);

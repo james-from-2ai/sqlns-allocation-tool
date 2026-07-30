@@ -139,6 +139,42 @@ section.screen[hidden] { display: none; }
   pointer-events: none;
 }
 
+/* Drifting dots. Sits above the grid wash, below all content. */
+.hero-dots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.hero-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation:
+    dot-drift var(--dur) linear infinite var(--delay),
+    dot-twinkle var(--twinkle) ease-in-out infinite alternate var(--delay);
+}
+
+/* Four random waypoints and back, so the loop closes without a jump. */
+@keyframes dot-drift {
+  0%   { transform: translate3d(0, 0, 0); }
+  25%  { transform: translate3d(var(--x1), var(--y1), 0); }
+  50%  { transform: translate3d(var(--x2), var(--y2), 0); }
+  75%  { transform: translate3d(var(--x3), var(--y3), 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+@keyframes dot-twinkle {
+  from { opacity: calc(var(--peak) * 0.35); }
+  to   { opacity: var(--peak); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-dot { animation: none; opacity: calc(var(--peak) * 0.6); }
+}
+
 .hero-copy { position: relative; z-index: 1; }
 .hero-logo { height: 30px; width: auto; margin-bottom: 16px; display: block; }
 .hero-eyebrow {

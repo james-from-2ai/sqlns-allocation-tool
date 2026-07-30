@@ -8,7 +8,7 @@ import { allocate, totalsOf, costEffectiveness, meetsThreshold } from "./allocat
 import { byRiskCategory, byThreshold, byImpactTarget, costing } from "./quantification.js";
 import { barChart, groupedBars, stackedBar, legend, fmt } from "./charts.js";
 import { choropleth, categoryChoropleth } from "./maps.js";
-import { heroMap } from "./hero.js";
+import { heroMap, heroDots } from "./hero.js";
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -84,6 +84,9 @@ async function boot() {
   $("#boot").remove();
   buildStaticControls();
   wireEvents();
+  // Independent of the boundary data, so the hero is never a blank panel while
+  // geo.json loads, or if it fails.
+  heroDots($("#hero-dots"));
   $("#scope-line").textContent =
     `Nigeria · ${DATA.wards.length.toLocaleString()} wards · ${DATA.lgas.length} LGAs · ${DATA.states.length} states`;
   show("inputs");
