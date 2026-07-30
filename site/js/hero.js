@@ -55,8 +55,8 @@ export function heroDots(container, count = 73) {
     // The bounds are solved rather than scaled: the seeded draws do not average
     // to the range midpoint, and the dot count changes how many are taken, so
     // scaling alone undershoots the intended speed. This range yields a realized
-    // mean of 14.9s over 73 dots.
-    dot.style.setProperty("--dur", `${between(8.8, 20.2).toFixed(1)}s`);
+    // mean of 7.45s over 73 dots.
+    dot.style.setProperty("--dur", `${between(4.4, 10.1).toFixed(1)}s`);
     dot.style.setProperty("--delay", `-${between(0, 60).toFixed(1)}s`);
     dot.style.setProperty("--twinkle", `${between(5, 13).toFixed(1)}s`);
     dot.style.setProperty("--peak", between(0.14, 0.5).toFixed(2));
