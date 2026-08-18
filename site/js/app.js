@@ -1376,11 +1376,25 @@ function renderAssumptions() {
     return tr;
   }));
 
-  // strategies, in the workbook's own words where available
+  // Only the strategies actually offered. The workbook's own wording is used,
+  // indexed by position in the original four-strategy list, with a note where V2
+  // changed the behaviour that wording describes.
   const defs = src._strategyDefinitions ?? [];
-  $("#assump-strategies").innerHTML = c.strategies.map((s, i) => `
-    <p style="margin:0 0 10px"><strong>${s.label}</strong><br>
-    <span class="small muted">${defs[i]?.description ?? s.description}</span></p>`).join("");
+  $("#assump-strategies").innerHTML = STRATEGIES.map((s) => {
+    const i = ALL_STRATEGIES.findIndex((a) => a.id === s.id);
+    let desc = defs[i]?.description ?? s.description;
+    if (s.id === "threshold") {
+      desc += " <em>In V2 the user-set thresholds were removed from the allocation "
+        + "inputs, so every geography is eligible and the pre-determined risk tiers "
+        + "alone set the order.</em>";
+    }
+    return `<p style="margin:0 0 10px"><strong>${s.label}</strong><br>
+      <span class="small muted">${desc}</span></p>`;
+  }).join("") +
+  `<p class="small muted" style="margin-top:14px">Two further approaches, ranking by
+   under-5 mortality and by stunting prevalence, were built and verified against the
+   workbook but withdrawn from the interface in V2, having never been presented to
+   government stakeholders. See the Changelog.</p>`;
 
   $("#assump-defects").innerHTML = `
     <div class="note warn">
@@ -1502,17 +1516,19 @@ function renderQuant() {
     targetIn.type = "number"; targetIn.min = "0"; targetIn.step = "1000"; targetIn.value = q.target;
     targetIn.addEventListener("input", (e) => { q.target = parseFloat(e.target.value) || 0; renderQuant(); });
 
-    const stratSel = document.createElement("select");
-    stratSel.append(...STRATEGIES.filter((s) => s.id !== "equal").map((s) => new Option(s.label, s.id)));
-    stratSel.value = q.strategy === "equal" ? "mortality" : q.strategy;
-    stratSel.addEventListener("change", (e) => { q.strategy = e.target.value; renderQuant(); });
+    // Reaching a target requires an order to work down, and equal distribution
+    // has none, being proportional rather than ranked. With the two ranked
+    // strategies withdrawn in V2, burden-based is the only order available, so a
+    // picker would be a dropdown with one entry. It is stated instead.
+    const ordered = orderByStrategy(rows, "threshold");
 
     extra.append(
       Object.assign(document.createElement("label"), { textContent: "Metric" }), metricSel,
       Object.assign(document.createElement("label"), { textContent: "Target" }), targetIn,
-      Object.assign(document.createElement("label"), { textContent: "Priority order" }), stratSel);
-
-    const ordered = orderByStrategy(rows, stratSel.value);
+      Object.assign(document.createElement("span"), {
+        className: "small muted",
+        textContent: "Filled in burden-based order, worst risk tier first.",
+      }));
     result = byImpactTarget(ordered, { metric: q.metric, target: q.target, level: q.level });
     if (!result.targetMet && q.target > 0) {
       $("#q-notice").innerHTML =
