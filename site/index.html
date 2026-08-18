@@ -21,6 +21,7 @@
     <button role="tab" data-screen="state" aria-selected="false">State-level allocation</button>
     <button role="tab" data-screen="quant" aria-selected="false">Quantification</button>
     <button role="tab" data-screen="assumptions" aria-selected="false">Assumptions</button>
+    <button role="tab" data-screen="changelog" aria-selected="false">Changelog</button>
     <span class="spacer"></span>
     <button class="action" id="copy-link" title="Copy a link that reproduces these exact settings">Copy scenario link</button>
   </nav>
@@ -89,42 +90,31 @@
           <label for="in-level">Allocation level</label>
           <select id="in-level"><option value="lgas">LGAs</option><option value="wards">Wards</option></select>
         </div>
+        <div class="field">
+          <label for="in-scope">Allocate across
+            <span class="hint">Run the whole model nationally, or inside a single state</span></label>
+          <select id="in-scope"><option value="">All of Nigeria</option></select>
+        </div>
+        <p class="small muted" id="scope-summary" style="margin:6px 0 0"></p>
       </div>
 
       <div class="card">
         <h2>Allocation approach</h2>
         <p class="small muted" style="margin-top:-6px">
-          Both refinements below can be used together. Thresholds shape the
-          threshold-based strategy; manual allocation reserves supply for named
-          states before any strategy runs.
+          Manual allocation reserves supply for named geographies before any
+          strategy runs. The burden-based strategy already prioritises by the
+          pre-determined risk tiers, so no extra thresholds are set here; those
+          live on the Quantification screen.
         </p>
 
-        <fieldset class="variant" id="fs-threshold" data-active="false">
-          <legend><input type="checkbox" id="use-threshold"> <label for="use-threshold">Use thresholds</label></legend>
-          <p class="small muted" style="margin-top:0">
-            A geography qualifies only if it clears <strong>all three</strong>.
-          </p>
-          <div class="field">
-            <label for="th-u5mr">Under-5 mortality &ge; (per 1,000)</label>
-            <input type="number" id="th-u5mr" step="1" min="0">
-          </div>
-          <div class="field">
-            <label for="th-stunt">Stunting prevalence &ge; (%)</label>
-            <input type="number" id="th-stunt" step="1" min="0">
-          </div>
-          <div class="field">
-            <label for="th-wast">Wasting prevalence &ge; (%)</label>
-            <input type="number" id="th-wast" step="1" min="0">
-          </div>
-          <p class="small muted" id="th-range"></p>
-          <p class="small" id="th-count"></p>
-        </fieldset>
+        
 
         <fieldset class="variant" id="fs-manual" data-active="false">
           <legend><input type="checkbox" id="use-manual"> <label for="use-manual">Use manual allocation</label></legend>
           <p class="small muted" style="margin-top:0">
-            Cartons reserved per state, filled down that state's own priority
-            order. The rest of the supply is then allocated by the chosen strategy.
+            <span id="manual-scope-note"></span>
+            Reservations are filled down that unit's own priority order, and the
+            rest of the supply is then allocated by the chosen strategy.
           </p>
           <div class="tiles" style="margin-bottom:12px">
             <div class="tile"><div class="label">Supply</div><div class="value" id="man-supply">0</div></div>
@@ -136,7 +126,7 @@
             <button class="action" id="man-clear">Clear all</button>
           </div>
           <div class="scroll-y"><table id="manual-table">
-            <thead><tr><th>State</th><th class="num">Cartons</th><th class="num">Need</th></tr></thead>
+            <thead><tr><th id="manual-unit-head">State</th><th class="num">Cartons</th><th class="num">Need</th></tr></thead>
             <tbody></tbody>
           </table></div>
         </fieldset>
@@ -204,11 +194,11 @@
     </div>
 
     <div class="grid-2">
-      <div class="card">
+      <div class="card" id="zone-card">
         <h2>Cartons by zone</h2>
         <div id="zone-chart"></div>
       </div>
-      <div class="card">
+      <div class="card" id="zone-deaths-card">
         <h2>Deaths averted by zone</h2>
         <div id="zone-deaths-chart"></div>
       </div>
@@ -452,6 +442,17 @@
     <div class="card">
       <h2>Data quality</h2>
       <div id="assump-quality"></div>
+    </div>
+  </section>
+
+  <!-- --------------------------------------------------------------- CHANGELOG -->
+  <section class="screen" id="screen-changelog" hidden>
+    <div class="card">
+      <h2>Version history</h2>
+      <p class="small muted" style="margin-top:-8px">
+        What was built, what was asked for in response, and what changed.
+      </p>
+      <div id="changelog"></div>
     </div>
   </section>
 

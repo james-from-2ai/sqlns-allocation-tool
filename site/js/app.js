@@ -4,7 +4,7 @@
  */
 
 import { programParams, deriveRow } from "./engine.js";
-import { allocate, totalsOf, costEffectiveness, meetsThreshold, supplyCurve } from "./allocation.js";
+import { allocate, totalsOf, costEffectiveness, supplyCurve } from "./allocation.js";
 import { byRiskCategory, byThreshold, byImpactTarget, costing } from "./quantification.js";
 import { barChart, winnerGroups, stackedBar, lineChart, legend, fmt } from "./charts.js";
 import { choropleth, categoryChoropleth } from "./maps.js";
@@ -17,10 +17,22 @@ const SERIES = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--
 
 /** Short forms, so the comparison chart can label bars directly instead of
  *  sending the reader to a legend. */
+/** Strategies shown in the interface, in display order. */
+const PRESENTED = ["threshold", "equal"];
+
+/**
+ * "Threshold-based strategy" was renamed at the stakeholder's request. Of the two
+ * names offered, "Burden-based" describes what it does, which is target the
+ * highest-burden geographies first. "Impact-based" would have implied it
+ * optimizes impact directly, which is closer to what the withdrawn mortality and
+ * stunting strategies did.
+ */
+const RELABEL = { threshold: "Burden-based strategy" };
+
 const SHORT_NAME = {
   mortality: "U2 deaths",
   stunting: "Stunting",
-  threshold: "Threshold",
+  threshold: "Burden-based",
   equal: "Equal",
 };
 
@@ -42,7 +54,8 @@ const RISK_COLOR = {
 
 let DATA;          // base.json
 let GEO = null;    // geo.json, loaded separately so the app works without it
-let STRATEGIES;    // constants.strategies
+let ALL_STRATEGIES;   // all four, kept so the engine and parity test are unchanged
+let STRATEGIES;       // the subset presented to users
 let state = {};    // current inputs
 const cache = {};  // derived rows + allocations, invalidated on input change
 
@@ -52,7 +65,14 @@ async function boot() {
   const res = await fetch("data/base.json");
   if (!res.ok) throw new Error(`could not load base.json (${res.status})`);
   DATA = await res.json();
-  STRATEGIES = DATA.constants.strategies;
+  ALL_STRATEGIES = DATA.constants.strategies;
+  // V2, per stakeholder feedback: only two approaches were ever presented to
+  // government, so the other two are withdrawn from the interface. They stay in
+  // the engine, which is what the parity test validates against the workbook.
+  STRATEGIES = ALL_STRATEGIES
+    .filter((s) => PRESENTED.includes(s.id))
+    .map((s) => ({ ...s, label: RELABEL[s.id] ?? s.label }))
+    .sort((a, b) => PRESENTED.indexOf(a.id) - PRESENTED.indexOf(b.id));
 
   state = {
     totalCartons: 750000,
@@ -61,14 +81,15 @@ async function boot() {
     enrollmentPeriod: 6,
     coverageCap: 0.75,
     level: "lgas",
-    useThreshold: false,
-    thresholds: { u5mr: 0, stunting: 0, wasting: 0 },
+    // "" is all of Nigeria; otherwise a single state, so a state official can
+    // run the same tool over their own geographies.
+    scope: "",
     useManual: false,
     manual: {},                 // state name -> cartons
     // true reproduces the workbook exactly, including the risk-1.3 defect;
     // false applies the intended rule. See docs/FINDINGS.md.
     bugCompat: true,
-    strategy: "mortality",
+    strategy: "threshold",
     stateSelected: DATA.states[0],
     currency: "USD",
     quant: {
@@ -96,6 +117,7 @@ async function boot() {
     `Nigeria · ${DATA.wards.length.toLocaleString()} wards · ${DATA.lgas.length} LGAs · ${DATA.states.length} states`;
 
   renderAssumptions();
+  renderChangelog();
 
   const screen = readUrl();
   syncControls();
@@ -125,7 +147,7 @@ async function boot() {
  */
 const URL_DEFAULTS = {
   c: 750000, ar: "6 to 23", d: 6, ep: 6, cc: 0.75, lv: "lgas",
-  th: 0, tu: 0, ts: 0, tw: 0, mn: 0, bc: 1, sg: "mortality", sc: "inputs",
+  mn: 0, bc: 1, sg: "threshold", sc: "inputs", sp: "",
 };
 
 function writeUrl() {
@@ -139,12 +161,7 @@ function writeUrl() {
   put("ep", state.enrollmentPeriod);
   put("cc", state.coverageCap);
   put("lv", state.level);
-  put("th", state.useThreshold ? 1 : 0);
-  if (state.useThreshold) {
-    put("tu", state.thresholds.u5mr);
-    put("ts", state.thresholds.stunting);
-    put("tw", state.thresholds.wasting);
-  }
+  put("sp", state.scope);
   put("mn", state.useManual ? 1 : 0);
   if (state.useManual) {
     const entries = Object.entries(state.manual).filter(([, v]) => Number(v) > 0);
@@ -174,8 +191,8 @@ function readUrl() {
   state.enrollmentPeriod = num("ep", URL_DEFAULTS.ep);
   state.coverageCap = num("cc", URL_DEFAULTS.cc);
   state.level = str("lv", URL_DEFAULTS.lv) === "wards" ? "wards" : "lgas";
-  state.useThreshold = num("th", 0) === 1;
-  state.thresholds = { u5mr: num("tu", 0), stunting: num("ts", 0), wasting: num("tw", 0) };
+  const sp = str("sp", "");
+  state.scope = DATA.states.includes(sp) ? sp : "";
   state.useManual = num("mn", 0) === 1;
   state.manual = {};
   if (p.has("m")) {
@@ -186,7 +203,7 @@ function readUrl() {
         const v = parseFloat(pair.slice(i + 1));
         // Only accept names the dataset actually knows, so a mangled link cannot
         // inject phantom states.
-        if (DATA.states.includes(name) && Number.isFinite(v)) state.manual[name] = v;
+        if (manualUnits().includes(name) && Number.isFinite(v)) state.manual[name] = v;
       }
     }
   }
@@ -209,11 +226,8 @@ function syncControls() {
   $("#in-enrol").value = state.enrollmentPeriod;
   $("#in-cap").value = state.coverageCap;
   $("#in-level").value = state.level;
-  $("#use-threshold").checked = state.useThreshold;
-  $("#fs-threshold").dataset.active = String(state.useThreshold);
-  $("#th-u5mr").value = state.thresholds.u5mr;
-  $("#th-stunt").value = state.thresholds.stunting;
-  $("#th-wast").value = state.thresholds.wasting;
+  $("#in-scope").value = state.scope;
+  buildManualTable();
   $("#use-manual").checked = state.useManual;
   $("#fs-manual").dataset.active = String(state.useManual);
   $("#bug-compat").checked = state.bugCompat;
@@ -268,17 +282,41 @@ async function loadGeo() {
 
 /* --------------------------------------------------------------- plumbing */
 
-/** Geographies at the active level, with the level's own field shape. */
-function geographies(level) {
-  return level === "wards" ? DATA.wards : DATA.lgas;
+/**
+ * Geographies at the active level, restricted to the current scope.
+ *
+ * At national scope this is every ward or LGA. With a state selected the whole
+ * model runs inside that state: needs, allocation, impact and cost are all
+ * state-only, so a state official sees their own numbers rather than a slice of
+ * a national run.
+ */
+function geographies(level, scope = state.scope) {
+  const all = level === "wards" ? DATA.wards : DATA.lgas;
+  return scope ? all.filter((g) => g.state === scope) : all;
+}
+
+/** The unit manual reservations are made against: states nationally, LGAs within a state. */
+function manualUnitLabel() {
+  return state.scope ? "LGA" : "State";
+}
+
+/** Names available for manual reservation under the current scope. */
+function manualUnits() {
+  if (!state.scope) return DATA.states;
+  const seen = new Set();
+  for (const l of DATA.lgas) if (l.state === state.scope) seen.add(l.lga);
+  return [...seen].sort((a, b) => a.localeCompare(b));
 }
 
 /** Derived rows for a given input set. Cached, since this is the hot path. */
 function derivedRows(inputs, key) {
-  const k = `${key}:bc${state.bugCompat}`;
+  // Quantification has its own state selector and must not inherit the
+  // allocation scope, so callers pass scope explicitly via inputs.
+  const scope = inputs.scope ?? state.scope;
+  const k = `${key}:bc${state.bugCompat}:sc${scope || "NG"}`;
   if (cache[k]) return cache[k];
   const params = programParams(DATA.constants, inputs);
-  const rows = geographies(inputs.level).map((g) => deriveRow(g, DATA.constants, params, state.bugCompat));
+  const rows = geographies(inputs.level, scope).map((g) => deriveRow(g, DATA.constants, params, state.bugCompat));
   cache[k] = rows;
   return rows;
 }
@@ -291,9 +329,17 @@ function allocationInputs() {
     enrollmentPeriod: state.enrollmentPeriod,
     coverageCap: state.coverageCap,
     level: state.level,
-    thresholds: state.useThreshold ? state.thresholds : { u5mr: 0, stunting: 0, wasting: 0 },
+    // The allocation-side threshold control was withdrawn in V2: the
+    // burden-based strategy already prioritises by the pre-determined risk
+    // tiers, and a second user-set threshold on top of that read as duplicative.
+    // Leaving these at zero means every geography is eligible and ranking alone
+    // decides, which is what the strategy was understood to do. Thresholds
+    // remain available on the Quantification screen.
+    thresholds: { u5mr: 0, stunting: 0, wasting: 0 },
     cartonsAllocatedManually: manualTotal(),
     manualByState: manualMap(),
+    manualKeyOf: state.scope ? (r) => r.lga : (r) => r.state,
+    scope: state.scope,
   };
 }
 
@@ -312,6 +358,7 @@ function manualMap() {
 const RENDERERS = {
   inputs: renderInputs, outputs: renderOutputs, comparison: renderComparison,
   state: renderStateLevel, quant: renderQuant, assumptions: renderAssumptions,
+  changelog: renderChangelog,
 };
 /** Supply-curve results, keyed by inputs. Cleared whenever inputs change. */
 const curveCache = {};
@@ -365,6 +412,17 @@ function buildStaticControls() {
     $(sel).replaceChildren(...STRATEGIES.map((s) => new Option(s.label, s.id)));
   }
   $("#st-state").replaceChildren(...DATA.states.map((s) => new Option(s, s)));
+  $("#in-scope").replaceChildren(
+    new Option("All of Nigeria", ""),
+    ...DATA.states.map((s) => new Option(s, s)),
+  );
+  const lede = document.querySelector(".hero-lede");
+  if (lede) {
+    lede.textContent =
+      "Where should small-quantity lipid-based nutrient supplements go? Compare " +
+      "allocation approaches across Nigeria's 9,684 wards and 774 LGAs, nationally " +
+      "or within a single state, and see the estimated health impact of each.";
+  }
   $("#in-cartons").value = state.totalCartons;
   $("#in-age").value = state.ageRange;
   $("#in-duration").value = state.duration;
@@ -377,13 +435,24 @@ function buildStaticControls() {
   $("#q-level").value = q.level; $("#q-cost").value = q.costPerCartonNgn;
   $("#q-markup").value = q.markup; $("#q-currency").value = q.currency;
 
-  // manual allocation table, one row per state
-  const tbody = $("#manual-table tbody");
-  tbody.replaceChildren(...DATA.states.map((s) => {
+  buildManualTable();
+}
+
+/**
+ * Manual reservation table, rebuilt whenever the scope changes: states when
+ * allocating nationally, LGAs when allocating inside one state.
+ */
+function buildManualTable() {
+  const units = manualUnits();
+  $("#manual-unit-head").textContent = manualUnitLabel();
+  $("#manual-scope-note").textContent = state.scope
+    ? `Cartons reserved for individual LGAs in ${state.scope}.`
+    : "Cartons reserved for individual states.";
+  $("#manual-table tbody").replaceChildren(...units.map((u) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${s}</td>
-      <td class="num"><input type="number" min="0" step="100" data-manual="${s}" value="0" style="min-width:96px"></td>
-      <td class="num muted" data-need="${s}">-</td>`;
+    tr.innerHTML = `<td>${u}</td>
+      <td class="num"><input type="number" min="0" step="100" data-manual="${u}" value="${state.manual[u] ?? 0}" style="min-width:96px"></td>
+      <td class="num muted" data-need="${u}">-</td>`;
     return tr;
   }));
 }
@@ -400,14 +469,15 @@ function wireEvents() {
   $("#in-cap").addEventListener("input", (e) => { state.coverageCap = num(e.target.value, 0); recompute(); });
   $("#in-level").addEventListener("change", (e) => { state.level = e.target.value; recompute(); });
 
-  $("#use-threshold").addEventListener("change", (e) => {
-    state.useThreshold = e.target.checked;
-    $("#fs-threshold").dataset.active = String(e.target.checked);
+  $("#in-scope").addEventListener("change", (e) => {
+    state.scope = e.target.value;
+    // Reservations are keyed by a different unit in each scope, so carrying them
+    // across would silently attach state figures to LGA names.
+    state.manual = {};
+    state.stateTouched = false;
+    buildManualTable();
     recompute();
   });
-  for (const [id, key] of [["#th-u5mr", "u5mr"], ["#th-stunt", "stunting"], ["#th-wast", "wasting"]]) {
-    $(id).addEventListener("input", (e) => { state.thresholds[key] = num(e.target.value, 0); recompute(); });
-  }
 
   $("#bug-compat").addEventListener("change", (e) => { state.bugCompat = e.target.checked; recompute(); });
 
@@ -495,6 +565,9 @@ function renderInputs() {
   const unit = inputs.level === "wards" ? "wards" : "LGAs";
 
   renderFidelityNote(rows, unit);
+  $("#scope-summary").textContent = state.scope
+    ? `Allocating within ${state.scope} only: ${rows.length.toLocaleString()} ${unit}.`
+    : `Allocating across all of Nigeria: ${rows.length.toLocaleString()} ${unit}.`;
 
   const totalNeed = rows.reduce((s, r) => s + r.cartonsNeeded, 0);
   const totalChildren = rows.reduce((s, r) => s + r.popEligible, 0);
@@ -502,27 +575,15 @@ function renderInputs() {
 
   tiles("#input-tiles", [
     { label: "Total supply", value: fmt.int(state.totalCartons), sub: "cartons", hero: true },
-    { label: "National need", value: fmt.compact(totalNeed), sub: `cartons, all ${rows.length.toLocaleString()} ${unit}` },
-    { label: "Supply covers", value: fmt.pct(Math.min(covered, 1), 1), sub: "of national need" },
-    { label: "Children eligible", value: fmt.compact(totalChildren), sub: "at full national coverage" },
+    { label: state.scope ? `${state.scope} need` : "National need",
+      value: fmt.compact(totalNeed),
+      sub: `cartons, all ${rows.length.toLocaleString()} ${unit}` },
+    { label: "Supply covers", value: fmt.pct(Math.min(covered, 1), 1),
+      sub: state.scope ? `of ${state.scope}'s need` : "of national need" },
+    { label: "Children eligible", value: fmt.compact(totalChildren),
+      sub: state.scope ? "at full coverage in scope" : "at full national coverage" },
     { label: "Cartons per child", value: fmt.dec(programParams(DATA.constants, inputs).cartonsPerChild, 3), sub: `${programParams(DATA.constants, inputs).sachetsPerChild} sachets` },
   ]);
-
-  // threshold panel feedback
-  const u5 = rows.map((r) => r.u5mr), st = rows.map((r) => r.stunting), wa = rows.map((r) => r.wasting);
-  $("#th-range").textContent =
-    `Observed across ${unit}: U5MR ${Math.floor(Math.min(...u5))} to ${Math.ceil(Math.max(...u5))}, ` +
-    `stunting ${Math.floor(Math.min(...st))} to ${Math.ceil(Math.max(...st))}%, ` +
-    `wasting ${Math.floor(Math.min(...wa))} to ${Math.ceil(Math.max(...wa))}%.`;
-  if (state.useThreshold) {
-    const hit = rows.filter((r) => meetsThreshold(r, state.thresholds));
-    const need = hit.reduce((s, r) => s + r.cartonsNeeded, 0);
-    $("#th-count").innerHTML = hit.length
-      ? `<strong>${hit.length.toLocaleString()}</strong> of ${rows.length.toLocaleString()} ${unit} qualify, needing <strong>${fmt.compact(need)}</strong> cartons.`
-      : `<span style="color:var(--critical)">No ${unit} clear all three thresholds. The threshold-based strategy would allocate nothing.</span>`;
-  } else {
-    $("#th-count").textContent = "";
-  }
 
   // manual allocation panel
   const supply = state.totalCartons, alloc = manualTotal();
@@ -536,10 +597,13 @@ function renderInputs() {
       ? `<div class="note warn">All supply is committed manually, so the strategy pool is empty.
          Every strategy will return the same manual allocation.</div>`
       : "";
-  const needByState = {};
-  for (const r of rows) needByState[r.state] = (needByState[r.state] ?? 0) + r.cartonsNeeded;
-  for (const [s, v] of Object.entries(needByState)) {
-    const cell = $(`[data-need="${CSS.escape(s)}"]`);
+  const needByUnit = {};
+  for (const r of rows) {
+    const k = state.scope ? r.lga : r.state;
+    needByUnit[k] = (needByUnit[k] ?? 0) + r.cartonsNeeded;
+  }
+  for (const [k, v] of Object.entries(needByUnit)) {
+    const cell = $(`[data-need="${CSS.escape(k)}"]`);
     if (cell) cell.textContent = fmt.compact(v);
   }
 
@@ -605,9 +669,16 @@ function renderOutputs() {
 
   renderStateMap(detail);
 
-  // by zone
-  const zones = aggregate(detail, (d) => DATA.zones[d.row.state] ?? "Unknown");
-  const zoneList = [...zones.entries()].sort((a, b) => b[1].cartons - a[1].cartons);
+  // By zone nationally; within one state, zones collapse to a single row, so
+  // break down by LGA instead, which is the useful cut at that scope.
+  const byZoneCard = $("#zone-card");
+  const groupLabel = state.scope ? "LGA" : "zone";
+  if (byZoneCard) {
+    byZoneCard.querySelector("h2").textContent = `Cartons by ${groupLabel}`;
+    $("#zone-deaths-card").querySelector("h2").textContent = `Deaths averted by ${groupLabel}`;
+  }
+  const zones = aggregate(detail, (d) => (state.scope ? d.row.lga : DATA.zones[d.row.state] ?? "Unknown"));
+  const zoneList = [...zones.entries()].sort((a, b) => b[1].cartons - a[1].cartons).slice(0, state.scope ? 15 : 6);
   barChart($("#zone-chart"), zoneList.map(([z, v]) => ({
     label: z, value: v.cartons, color: "var(--series-1)",
     tip: `<div class="tt-title">${z}</div>${fmt.int(v.cartons)} cartons<br>${fmt.compact(v.childrenTargeted)} children`,
@@ -617,12 +688,16 @@ function renderOutputs() {
     .sort((a, b) => b.value - a.value), { valueFormat: (v) => fmt.int(v), labelWidth: 128 });
 
   // by state
-  const byState = aggregate(detail, (d) => d.row.state);
+  const byState = aggregate(detail, (d) => (state.scope ? d.row.lga : d.row.state));
   const list = [...byState.entries()].filter(([, v]) => v.cartons > 0).sort((a, b) => b[1].cartons - a[1].cartons);
+  // Rows are states nationally and LGAs within a state, so the headers follow.
+  const head = $("#state-table thead").rows[0];
+  head.cells[0].textContent = state.scope ? "LGA" : "State";
+  head.cells[1].textContent = state.scope ? "State" : "Zone";
   const tb = $("#state-table tbody");
   tb.replaceChildren(...list.map(([s, v]) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${s}</td><td class="muted">${DATA.zones[s] ?? ""}</td>
+    tr.innerHTML = `<td>${s}</td><td class="muted">${state.scope ? state.scope : DATA.zones[s] ?? ""}</td>
       <td class="num">${fmt.int(v.cartons)}</td><td class="num">${fmt.pct(v.cartons / (totals.cartons || 1), 1)}</td>
       <td class="num">${fmt.int(v.lgas.size)}</td><td class="num">${fmt.int(v.wards)}</td>
       <td class="num">${fmt.compact(v.childrenTargeted)}</td><td class="num">${fmt.int(v.deathsAverted)}</td>
@@ -730,7 +805,7 @@ function renderHero() {
 /** National choropleth by state, on the outputs screen. */
 function renderStateMap(detail) {
   if (!GEO) return;
-  const byState = aggregate(detail, (d) => d.row.state);
+  const byState = aggregate(detail, (d) => (state.scope ? d.row.lga : d.row.state));
   const needByState = {};
   for (const d of detail) needByState[d.row.state] = (needByState[d.row.state] ?? 0) + d.row.cartonsNeeded;
   // worst (lowest-numbered) risk category present in each state
@@ -1080,12 +1155,18 @@ function avgChildrenPerWard() {
 
 function renderStateLevel() {
   $("#st-strategy").value = state.strategy;
+  // When the allocation is already scoped to one state there is nothing to pick.
+  if (state.scope) {
+    state.stateSelected = state.scope;
+    state.stateTouched = true;
+  }
+  $("#st-state").disabled = Boolean(state.scope);
   const { detail, totals } = currentAllocation(state.strategy);
 
   // Opening on a state that receives nothing reads as a broken screen, so if
   // the user has not chosen one yet, land on the largest recipient.
   if (!state.stateTouched) {
-    const byState = aggregate(detail, (d) => d.row.state);
+    const byState = aggregate(detail, (d) => (state.scope ? d.row.lga : d.row.state));
     const top = [...byState.entries()].sort((a, b) => b[1].cartons - a[1].cartons)[0];
     if (top) state.stateSelected = top[0];
   }
@@ -1097,7 +1178,8 @@ function renderStateLevel() {
   const need = mine.reduce((s, d) => s + d.row.cartonsNeeded, 0);
   tiles("#st-tiles", [
     { label: "Cartons allocated", value: fmt.int(st.cartons), hero: true },
-    { label: "Share of national", value: fmt.pct(totals.cartons ? st.cartons / totals.cartons : 0, 1) },
+    { label: state.scope ? "Share of scope" : "Share of national",
+      value: fmt.pct(totals.cartons ? st.cartons / totals.cartons : 0, 1) },
     { label: "State need", value: fmt.compact(need), sub: "cartons" },
     { label: "Need covered", value: fmt.pct(need ? st.cartons / need : 0, 1) },
     { label: `${unit === "wards" ? "Wards" : "LGAs"} funded`, value: fmt.int(mine.filter((d) => d.cartons > 0).length), sub: `of ${mine.length}` },
@@ -1148,6 +1230,70 @@ function renderStateLevel() {
   $("#st-estimated-note").textContent = nEst
     ? `* ${nEst} ward${nEst === 1 ? "" : "s"} in this state had no ward-level match in the source data; the LGA-level estimate was used.`
     : "";
+}
+
+/* ------------------------------------------------------ screen: changelog */
+
+/**
+ * Version history. Kept in the tool rather than only in git, because the people
+ * reviewing it are not going to read commit messages.
+ */
+function renderChangelog() {
+  const ENTRIES = [
+    {
+      tag: "v1",
+      when: "28 to 29 July 2026",
+      who: "Built by James Bedford",
+      kind: "release",
+      lead: "Ported the SQ-LNS allocation model out of Excel into a static web tool.",
+      items: [
+        "Audited the source workbook: 45 sheets, 58 MB, 6 of them visible. Found it could not recalculate, because it is a Google Sheets export in which 6,205 cells hold Google-only functions frozen at their last cached value.",
+        "Rebuilt the calculation in JavaScript so it runs in the browser with no backend, and verified it against the workbook's own cached values: every derived column for all 9,684 wards and 774 LGAs, and all four allocation strategies.",
+        "Five screens matching the original's visible sheets, plus state and LGA choropleth maps joined to GRID3 boundaries.",
+        "Delivered a rebuilt workbook as well, 8 visible sheets and 4.4 MB, for anyone who prefers Excel. Verified by driving real Excel and comparing to the same cached values.",
+        "Reported three defects found in the source model, the most consequential being a dangling cell reference that drops the stunting criterion from risk level 1.3.",
+      ],
+    },
+    {
+      tag: "v1 feedback",
+      when: "August 2026",
+      who: "From Grace Hultquist",
+      kind: "feedback",
+      lead: "Review of v1 by the main stakeholder.",
+      items: [
+        "Only two of the four allocation approaches were ever presented to government stakeholders, so remove the other two to simplify. Rename “Threshold-based strategy” to something clearer.",
+        "The Quantification screen lets you look at all of Nigeria or one state; do the same for the allocation mode, so the tool works for a federal official and a state official alike. In the state version, manual allocation should be to LGAs rather than states.",
+        "Remove the “use thresholds” control from the allocation inputs. It was never used and reads as confusing, since the threshold-based strategy already uses pre-determined thresholds. Keep the functionality on the Quantification screen.",
+      ],
+    },
+    {
+      tag: "v2",
+      when: "August 2026",
+      who: "Built by James Bedford",
+      kind: "release",
+      lead: "Acted on the v1 feedback.",
+      items: [
+        "Reduced the interface to the two approaches actually used: the <strong>Burden-based strategy</strong> and <strong>Equal distribution</strong>. The withdrawn approaches remain in the calculation engine, because that is what the parity test checks against the workbook; they are simply no longer offered.",
+        "Renamed “Threshold-based” to <strong>Burden-based</strong>. Of the two names suggested, this one describes the mechanism, which is to target the highest-burden geographies first. “Impact-based” would have implied it optimises impact directly, closer to what the withdrawn strategies did.",
+        "Added an <strong>Allocate across</strong> control: all of Nigeria, or any single state. With a state selected the entire model runs inside it, so needs, allocation, impact and cost are all state-only rather than a slice of a national run.",
+        "Manual reservations now key on the unit that matches the scope: states nationally, LGAs within a state. Switching scope clears any existing reservations, since carrying them across would attach state figures to LGA names.",
+        "Removed the allocation-side threshold control. With it gone every geography is eligible and the pre-determined risk tiers alone decide the order, which is what the strategy was understood to do. Thresholds remain on the Quantification screen.",
+        "Within a single state, the zone breakdowns become LGA breakdowns, since zones collapse to one row at that scope.",
+        "Added this changelog.",
+      ],
+    },
+  ];
+
+  $("#changelog").innerHTML = ENTRIES.map((e) => `
+    <section class="release release-${e.kind}">
+      <div class="release-head">
+        <span class="release-tag">${e.tag}</span>
+        <span class="release-when">${e.when}</span>
+        <span class="release-who">${e.who}</span>
+      </div>
+      <p class="release-lead">${e.lead}</p>
+      <ul>${e.items.map((i) => `<li>${i}</li>`).join("")}</ul>
+    </section>`).join("");
 }
 
 /* ---------------------------------------------------- screen: assumptions */
@@ -1280,6 +1426,9 @@ function renderQuant() {
   const inputs = {
     ageRange: q.ageRange, duration: q.duration, enrollmentPeriod: q.enrollmentPeriod,
     coverageCap: q.coverageCap, level: q.level,
+    // Explicitly national: this screen has its own state selector and should not
+    // inherit whatever scope the allocation screens are set to.
+    scope: "",
   };
   const params = programParams(DATA.constants, inputs);
   const rows = derivedRows(inputs, `quant:${q.level}:${q.ageRange}:${q.duration}:${q.enrollmentPeriod}:${q.coverageCap}`);
@@ -1443,7 +1592,7 @@ function downloadCsv(name, header, rows) {
 
 function downloadStateCsv() {
   const { detail } = currentAllocation(state.strategy);
-  const byState = aggregate(detail, (d) => d.row.state);
+  const byState = aggregate(detail, (d) => (state.scope ? d.row.lga : d.row.state));
   downloadCsv(`sqlns-${state.strategy}-by-state.csv`,
     ["State", "Zone", "Cartons", "LGAs", "Wards", "Children", "Deaths averted", "Stunting averted", "SAM averted", "Anemia averted", "DALYs averted"],
     [...byState.entries()].sort((a, b) => b[1].cartons - a[1].cartons).map(([s, v]) =>

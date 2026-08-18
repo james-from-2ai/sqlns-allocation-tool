@@ -85,18 +85,22 @@ export function meetsThreshold(row, thresholds) {
  * order. Mirrors column I: MIN(need, MAX(0, stateManual - sum of *needs* above
  * within the same state)).
  */
-function allocateManual(rows, specs, manualByState, gated) {
+function allocateManual(rows, specs, manualByKey, gated, keyOf = (r) => r.state) {
   const manual = new Map();
-  const consumed = new Map(); // state -> cumulative cartons *needed* above
+  const consumed = new Map(); // group -> cumulative cartons *needed* above
   for (const row of sortBy(rows, specs)) {
-    const stateManual = manualByState.get(row.state.toLowerCase()) ?? 0;
-    const already = consumed.get(row.state) ?? 0;
+    // The grouping is by state when allocating nationally, and by LGA when
+    // allocating within a single state, since that is the unit a state official
+    // would reserve against.
+    const group = keyOf(row);
+    const reserved = manualByKey.get(String(group).toLowerCase()) ?? 0;
+    const already = consumed.get(group) ?? 0;
     let give = 0;
-    if (stateManual !== 0 && (!gated || row.meetsThreshold)) {
-      give = Math.min(row.cartonsNeeded, Math.max(0, stateManual - already));
+    if (reserved !== 0 && (!gated || row.meetsThreshold)) {
+      give = Math.min(row.cartonsNeeded, Math.max(0, reserved - already));
     }
     manual.set(row, give);
-    consumed.set(row.state, already + row.cartonsNeeded);
+    consumed.set(group, already + row.cartonsNeeded);
   }
   return manual;
 }
@@ -126,7 +130,9 @@ function allocatePool(rows, specs, manual, pool, gated) {
  *
  * @param rows     derived rows from engine.deriveRow
  * @param strategy "mortality" | "stunting" | "threshold" | "equal"
- * @param inputs   { totalCartons, cartonsAllocatedManually, thresholds, manualByState }
+ * @param inputs   { totalCartons, cartonsAllocatedManually, thresholds, manualByState,
+ *                   manualKeyOf } where manualKeyOf picks the unit manual
+ *                   reservations are keyed by, defaulting to state
  * @returns Map of row -> cartons allocated
  */
 export function allocate(rows, strategy, inputs) {
@@ -151,7 +157,7 @@ export function allocate(rows, strategy, inputs) {
     for (const row of rows) row.meetsThreshold = meetsThreshold(row, inputs.thresholds);
   }
 
-  const manual = allocateManual(rows, specs.byState, manualByState, gated);
+  const manual = allocateManual(rows, specs.byState, manualByState, gated, inputs.manualKeyOf);
   const pool = totalCartons - cartonsAllocatedManually;
   return allocatePool(rows, specs.global, manual, pool, gated);
 }
@@ -208,7 +214,7 @@ export function supplyCurve(rows, strategy, inputs, levels) {
   if (gated) for (const row of rows) row.meetsThreshold = meetsThreshold(row, inputs.thresholds);
 
   // Manual allocation is fixed: it does not vary with total supply.
-  const manual = allocateManual(rows, specs.byState, inputs.manualByState, gated);
+  const manual = allocateManual(rows, specs.byState, inputs.manualByState, gated, inputs.manualKeyOf);
   const manualImpact = zero();
   for (const row of rows) {
     const give = manual.get(row) ?? 0;
