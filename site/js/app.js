@@ -381,6 +381,9 @@ function recompute() {
 }
 
 function renderScreen(name) {
+  // An unknown name must not throw: recompute() calls this before writeUrl(),
+  // so a throw here would silently discard the input the user just typed.
+  if (!RENDERERS[name]) return;
   RENDERERS[name]();
   dirty.delete(name);
 }
@@ -458,7 +461,9 @@ function buildManualTable() {
 }
 
 function wireEvents() {
-  $$("nav.tabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.screen)));
+  // Only the tabs carry data-screen. The nav also holds #copy-link, and wiring
+  // show() to that button would call show(undefined), hiding every screen.
+  $$("nav.tabs button[data-screen]").forEach((b) => b.addEventListener("click", () => show(b.dataset.screen)));
 
   const num = (v, d) => (Number.isFinite(parseFloat(v)) ? parseFloat(v) : d);
 
@@ -550,7 +555,7 @@ function debounce(fn, ms) {
 function show(name) {
   currentScreen = name;
   writeUrl();
-  $$("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.screen === name)));
+  $$("nav.tabs button[data-screen]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.screen === name)));
   $$("section.screen").forEach((s) => (s.hidden = s.id !== `screen-${name}`));
   // Charts size themselves off clientWidth, which reads 0 while hidden, so a
   // stale screen must be drawn after it becomes visible, not before.

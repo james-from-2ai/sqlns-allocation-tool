@@ -25,8 +25,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Parity test against the source workbook
+      # Reads the committed fixtures, not the 58 MB source export, so it runs
+      # without the workbook being present.
+      - name: Parity test against the workbook's cached values
         run: node tools/parity_test.mjs
+      # Covers state-scoped allocation, which the parity test cannot reach
+      # because the source sheet has no scoped mode.
+      - name: Scope test for state-scoped allocation
+        run: node tools/scope_test.mjs
 
   deploy:
     needs: verify

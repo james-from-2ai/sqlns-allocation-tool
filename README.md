@@ -29,6 +29,20 @@ Full audit, with the verification for each claim: [`docs/FINDINGS.md`](docs/FIND
    from 45 sheets and 58 MB, with the same functionality. It recalculates
    correctly, which the original does not.
 
+## Four strategies in the engine, two in the interface
+
+The engine implements all four approaches the workbook does, and the parity
+test checks all four against it. The interface presents only two.
+
+Grace Hultquist's feedback on v1 was that only two of the four were ever put to
+government, so the other two were dropped from the interface: they remain in the
+engine, because they are what the parity test validates against the workbook.
+The threshold-based strategy is labelled "Burden-based" in the interface, which
+describes the mechanism rather than implying it optimises impact directly.
+
+The rebuilt workbook still offers all four, since it is meant to mirror the
+source sheet. Expect that difference when comparing the two side by side.
+
 ## Layout
 
     site/
@@ -36,12 +50,13 @@ Full audit, with the verification for each claim: [`docs/FINDINGS.md`](docs/FIND
       data/fixtures.json    workbook inputs and cached outputs, for the test
       data/geo.json         state and LGA boundaries, joined to the model
       js/engine.js          constants, derived columns, risk categorization
-      js/allocation.js      the four allocation strategies
+      js/allocation.js      the four allocation strategies, two of them presented
       js/maps.js            choropleths, inline SVG, no mapping library
     tools/
       xlsxpeek.py               stream sheet XML from the workbook
       build_data.py             regenerate site/data/*.json from the workbook
       parity_test.mjs           assert the engine matches the workbook
+      scope_test.mjs            assert state-scoped allocation behaves
       build_clean_workbook.py   generate the rebuilt xlsx
       clean_workbook_sheets.py  its non-model sheets
       verify_clean_workbook.py  recalculate the rebuild in Excel and check it
@@ -103,11 +118,17 @@ LGA-level estimates. That would need GRID3 ward boundaries and a reviewed match.
 
 ## Regenerating the data
 
-Point `WORKBOOK` in `tools/xlsxpeek.py` at the source file, then:
+Only needed to rebuild `site/data/*.json` from the source export. The site and
+the tests ship what they need, so this is not part of a normal run.
 
 ```bash
-python tools/build_data.py
+SQLNS_WORKBOOK="/path/to/SQ-LNS Allocation Tool.xlsx" python tools/build_data.py
 ```
+
+`tools/xlsxpeek.py` also checks the usual filenames in `~/Downloads`, and fails
+with the list it tried rather than guessing. Read
+[`PROGRESS.md`](PROGRESS.md) first: regenerating rewrites `fixtures.json`, which
+is the baseline `parity_test.mjs` asserts against.
 
 ## Rebuilding the clean workbook
 

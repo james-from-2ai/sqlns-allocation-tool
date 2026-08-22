@@ -15,13 +15,12 @@ import zipfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOWNLOADS = os.path.join(os.path.expanduser("~"), "Downloads")
 
-# The original export, or the parity copy of it, whichever is present. The copy
-# is content-identical, so either is a valid baseline.
-ORIGINAL_CANDIDATES = [
-    os.path.join(DOWNLOADS, "SQ-LNS Allocation Tool.xlsx"),
-    os.path.join(DOWNLOADS, "PARITY TEST COPY - SQ-LNS Allocation Tool (safe to edit).xlsx"),
-]
-ORIGINAL = next((p for p in ORIGINAL_CANDIDATES if os.path.exists(p)), None)
+# The original export, resolved by xlsxpeek so both tools agree on which file
+# is the baseline and SQLNS_WORKBOOK overrides it in one place.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import xlsxpeek  # noqa: E402
+
+ORIGINAL = xlsxpeek.resolve(required=False)
 REBUILT = os.path.join(ROOT, "dist", "SQ-LNS Allocation Tool (rebuilt).xlsx")
 
 # Native Google Sheets sizes, from the Drive API. The xlsx export is much larger

@@ -2,13 +2,12 @@
 
 Rebuild of the SQ-LNS Allocation Tool as a static site for GitHub Pages.
 
-Source workbook: `C:\Users\G09jb\Downloads\SQ-LNS Allocation Tool.xlsx`
 Google Sheet: https://docs.google.com/spreadsheets/d/1o8bjdsJaukcX3SJtSfSjXLb6MIjaWapLZhi7FOK2hd8/edit
 
-**The source export went missing from Downloads mid-session.** A fresh one is at
-`C:\Users\G09jb\Downloads\PARITY TEST COPY - SQ-LNS Allocation Tool (safe to edit).xlsx`,
-re-exported from the sheet. `xlsxpeek.py` still points at the old path, so update
-`WORKBOOK` before re-running `build_data.py`.
+Source export: `~/Downloads/SQ-LNS Allocation Tool_ORIG.xlsx`. It has been
+renamed more than once, so `tools/xlsxpeek.py` resolves it against a list of
+known filenames and honours `SQLNS_WORKBOOK`, failing loudly rather than picking
+up the wrong export. Only the regeneration and audit tools open it.
 
 ## Decisions taken
 
@@ -120,6 +119,23 @@ never modified; its `modifiedTime` is unchanged.
 4. Quantification Tool: three targeting modes, by risk category, by threshold,
    and by impact target.
 5. Parity test (`tools/parity_test.mjs`), then the UI, then GitHub Pages deploy.
+
+## Regenerating data re-baselines the parity test
+
+`site/data/fixtures.json` holds the sheet's cached outputs **at the inputs that
+were saved when it was generated**, being 10,000 cartons with all of it reserved
+for Jigawa. `tools/parity_test.mjs` asserts against exactly those values.
+
+Grace's sheet has since moved to a real planning scenario, 663,332 cartons over
+6 to 18 months with a 9-month enrollment at ward level. The underlying data is
+unchanged, verified cell by cell across all 87,156 ward and 6,966 LGA source
+cells, so `base.json` is still correct. But re-running `build_data.py` would
+rewrite `fixtures.json` from the new saved state and silently change what the
+parity test asserts. Regenerate deliberately, and re-read the test's output when
+you do.
+
+Nothing that runs needs the 58 MB export: the site ships `base.json` and CI
+reads the committed fixtures. Set `SQLNS_WORKBOOK` when you do need it.
 
 ## Gotchas to carry forward
 

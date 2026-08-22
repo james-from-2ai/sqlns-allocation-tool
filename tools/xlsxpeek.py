@@ -17,13 +17,39 @@ import zipfile
 
 import os
 
-# The source export, or a copy of it. The original was renamed at one point, so
-# resolve against the known candidates rather than a single hard-coded path.
+# The 58 MB source export. Nothing that *runs* needs it: the site ships
+# site/data/base.json, and the tests read the committed fixtures. It is required
+# only to regenerate that data (build_data.py) or to re-audit the original
+# (compare_workbooks.py, probe_inputs.py).
+#
+# It has been renamed more than once, so point SQLNS_WORKBOOK at it rather than
+# editing this list. resolve() fails loudly rather than silently picking up the
+# wrong export, because regenerating from the wrong one would re-baseline
+# fixtures.json and quietly change what the parity test asserts.
+_DOWNLOADS = os.path.join(os.path.expanduser("~"), "Downloads")
 _CANDIDATES = [
-    r"C:\Users\G09jb\Downloads\SQ-LNS Allocation Tool.xlsx",
-    r"C:\Users\G09jb\Downloads\PARITY TEST COPY - SQ-LNS Allocation Tool (safe to edit).xlsx",
+    os.environ.get("SQLNS_WORKBOOK"),
+    os.path.join(_DOWNLOADS, "SQ-LNS Allocation Tool_ORIG.xlsx"),
+    os.path.join(_DOWNLOADS, "SQ-LNS Allocation Tool.xlsx"),
+    os.path.join(_DOWNLOADS, "PARITY TEST COPY - SQ-LNS Allocation Tool (safe to edit).xlsx"),
 ]
-WORKBOOK = next((p for p in _CANDIDATES if os.path.exists(p)), _CANDIDATES[0])
+
+
+def resolve(required=True):
+    """Path to the source export, or None when it is absent and optional."""
+    for cand in _CANDIDATES:
+        if cand and os.path.exists(cand):
+            return cand
+    if not required:
+        return None
+    tried = "\n  ".join(c for c in _CANDIDATES if c)
+    raise SystemExit(
+        "Cannot find the source workbook. Set SQLNS_WORKBOOK to its path.\n"
+        f"Tried:\n  {tried}"
+    )
+
+
+WORKBOOK = next((c for c in _CANDIDATES if c and os.path.exists(c)), None)
 
 _ENT = [("&lt;", "<"), ("&gt;", ">"), ("&quot;", '"'), ("&apos;", "'"), ("&amp;", "&")]
 
@@ -35,8 +61,8 @@ def unescape(text):
 
 
 class Book:
-    def __init__(self, path=WORKBOOK):
-        self.zip = zipfile.ZipFile(path)
+    def __init__(self, path=None):
+        self.zip = zipfile.ZipFile(path or resolve())
         rels = self.zip.read("xl/_rels/workbook.xml.rels").decode("utf8", "ignore")
         rmap = dict(re.findall(r'Id="(rId\d+)"[^>]*Target="([^"]+)"', rels))
         wb = self.zip.read("xl/workbook.xml").decode("utf8", "ignore")
