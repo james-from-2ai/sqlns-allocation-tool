@@ -782,7 +782,7 @@ function renderHero() {
     [fmt.int(DATA.wards.length), "wards"],
     [fmt.int(DATA.lgas.length), "LGAs"],
     [fmt.compact(children), "children eligible"],
-    [fmt.compact(totalNeed), "cartons of need"],
+    [fmt.compact(totalNeed), "cartons needed"],
     [fmt.int(highRisk), `very high risk ${inputs.level === "wards" ? "wards" : "LGAs"}`],
   ].map(([n, k]) => `<div class="hero-stat"><div class="n">${n}</div><div class="k">${k}</div></div>`).join("");
 
