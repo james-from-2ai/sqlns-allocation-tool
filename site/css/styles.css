@@ -365,17 +365,40 @@ fieldset.variant[data-active="false"] select { pointer-events: none; }
 
 /* -------------------------------------------------------------- stat tiles */
 
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 12px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(172px, 1fr)); gap: 12px; }
 .tile {
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 13px 15px;
+  /* Declared explicitly. The tile was relying on the default, and in practice it
+     was resolving to a two-column grid that sized the value to fit-content, so
+     long figures were clipped mid-number ("145,3..."). Stating block here means
+     the value always gets the tile's full inner width. */
+  display: block;
 }
 .tile .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-.tile .value { font-size: 25px; font-weight: 640; letter-spacing: -0.02em; margin-top: 3px; }
+.tile .value {
+  font-size: 25px;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  margin-top: 3px;
+  /* Never break a figure across lines, and never let one spill the tile: the
+     size steps below shrink it to fit instead. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+/* Stepped down by character count, set in tiles(). */
+.tile .value.v-md { font-size: 21px; }
+.tile .value.v-sm { font-size: 18px; letter-spacing: -0.01em; }
+.tile .value.v-xs { font-size: 15.5px; letter-spacing: 0; }
 .tile .sub { font-size: 12px; color: var(--text-secondary); margin-top: 1px; }
 .tile.hero .value { font-size: 34px; }
+.tile.hero .value.v-md { font-size: 27px; }
+.tile.hero .value.v-sm { font-size: 22px; }
+.tile.hero .value.v-xs { font-size: 17px; }
 
 /* ------------------------------------------------------------------ tables */
 
@@ -428,6 +451,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 .score .who { font-size: 12.5px; color: var(--text-secondary); }
 .score .wins { font-size: 21px; font-weight: 660; letter-spacing: -0.02em; }
 .score .of { font-size: 11.5px; color: var(--text-muted); }
+.score .tiedcount { color: var(--text-secondary); }
 
 /* Best value in a cost column, where lower wins and the direction is inverted
    relative to every other chart on the page. */

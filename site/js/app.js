@@ -974,23 +974,32 @@ function renderComparison() {
   }));
   winnerGroups($("#cmp-chart"), groups);
 
-  // Scoreboard: how many measures each strategy leads. Ties count for everyone
-  // tied, so the totals can exceed the number of measures.
-  const wins = Object.fromEntries(STRATEGIES.map((s) => [s.id, 0]));
+  // Scoreboard. An outright lead and a tie are different claims, so they are
+  // counted separately: crediting a tie as a lead let two strategies each appear
+  // to lead the same measure, and made the counts sum to more than the number of
+  // measures.
+  const lead = Object.fromEntries(STRATEGIES.map((s) => [s.id, 0]));
+  const tied = Object.fromEntries(STRATEGIES.map((s) => [s.id, 0]));
   let tiedMeasures = 0;
   for (const [, field] of METRICS) {
     const best = Math.max(...results.map((r) => r.totals[field]));
-    const leaders = results.filter((r) => nearlyEqual(r.totals[field], best));
-    if (leaders.length > 1) tiedMeasures++;
-    for (const r of leaders) wins[r.meta.id]++;
+    const atBest = results.filter((r) => nearlyEqual(r.totals[field], best));
+    if (atBest.length > 1) {
+      tiedMeasures++;
+      for (const r of atBest) tied[r.meta.id]++;
+    } else {
+      lead[atBest[0].meta.id]++;
+    }
   }
-  const topWins = Math.max(...Object.values(wins));
+  const topLead = Math.max(...Object.values(lead));
   $("#cmp-scoreboard").innerHTML = STRATEGIES.map((s) => {
-    const n = wins[s.id];
-    return `<div class="score${n === topWins && n > 0 ? " leader" : ""}">
+    const n = lead[s.id];
+    const t = tied[s.id];
+    return `<div class="score${n === topLead && n > 0 ? " leader" : ""}">
       <div class="who">${s.label}</div>
       <div class="wins">${n}</div>
-      <div class="of">of ${METRICS.length} measures led</div>
+      <div class="of">of ${METRICS.length} measures led outright${
+        t ? `<br><span class="tiedcount">+ ${t} tied</span>` : ""}</div>
     </div>`;
   }).join("");
 
@@ -1589,11 +1598,23 @@ function orderByStrategy(rows, strategy) {
 
 /* --------------------------------------------------------------- utilities */
 
+/**
+ * Stat tiles.
+ *
+ * The value font is stepped down for longer strings. A tile is only ~128px of
+ * usable width, and at the hero size a seven-character figure like "145,308"
+ * overflowed and was clipped mid-number, which is worse than simply being
+ * smaller. Sizing on character count is container-independent and predictable,
+ * unlike a viewport-based clamp.
+ */
 function tiles(sel, items) {
   $(sel).replaceChildren(...items.map((t) => {
     const d = document.createElement("div");
     d.className = "tile" + (t.hero ? " hero" : "");
-    d.innerHTML = `<div class="label">${t.label}</div><div class="value">${t.value}</div>` +
+    const text = String(t.value ?? "");
+    const fit = text.length > 12 ? " v-xs" : text.length > 9 ? " v-sm" : text.length > 6 ? " v-md" : "";
+    d.innerHTML = `<div class="label">${t.label}</div>` +
+      `<div class="value${fit}">${t.value}</div>` +
       (t.sub ? `<div class="sub">${t.sub}</div>` : "");
     return d;
   }));
