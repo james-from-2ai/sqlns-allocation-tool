@@ -302,12 +302,39 @@ export function lineChart(container, series, { height = 300, xLabel = "", yLabel
       .map((p, i) => `${i === 0 ? "M" : "L"}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`)
       .join("");
     svg.append(el("path", { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
-    // Label the line at its right end, so identity does not depend on the legend.
-    const last = s.points[s.points.length - 1];
-    const tag = el("text", { x: sx(last.x) - 2, y: sy(last.y) - 7, "text-anchor": "end", class: "value-label" });
+  }
+
+  // Direct labels, placed where the lines are furthest apart rather than at their
+  // right ends. These curves converge at both ends by construction: at zero supply
+  // nothing is averted, and at full national need every strategy funds everything.
+  // So end-anchored labels landed on the same point and overprinted each other.
+  const span = Math.min(...live.map((s) => s.points.length));
+  let at = 0;
+  let widest = -1;
+  for (let i = 0; i < span; i++) {
+    const ys = live.map((s) => s.points[i].y);
+    const spread = Math.max(...ys) - Math.min(...ys);
+    if (spread > widest) {
+      widest = spread;
+      at = i;
+    }
+  }
+  // Highest line labels above its own line, lowest below, so neither sits on it.
+  const ranked = [...live].sort((a, b) => b.points[at].y - a.points[at].y);
+  ranked.forEach((s, rank) => {
+    const p = s.points[at];
+    const above = rank === 0;
+    const x = Math.min(Math.max(sx(p.x), padL + 34), padL + plotW - 34);
+    const tag = el("text", {
+      x, y: sy(p.y) + (above ? -10 : 18), "text-anchor": "middle",
+      class: "line-label", fill: s.color,
+      // A surface-coloured halo keeps the text readable where it crosses a
+      // gridline or the other series.
+      stroke: "var(--surface-1)", "stroke-width": 3.5, "paint-order": "stroke",
+    });
     tag.textContent = s.name;
     svg.append(tag);
-  }
+  });
 
   // Hover: nearest x, tooltip listing every series at that supply level.
   const hit = el("rect", { x: padL, y: padT, width: plotW, height: plotH, fill: "transparent" });

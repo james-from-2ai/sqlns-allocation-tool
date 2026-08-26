@@ -605,3 +605,7 @@ button.action.primary:hover { opacity: 0.9; }
 .release ul { margin: 0; padding-left: 20px; }
 .release li { margin-bottom: 7px; font-size: 13.5px; color: var(--text-secondary); line-height: 1.55; }
 .release li strong { color: var(--text-primary); }
+
+/* Direct labels on line charts. Coloured to match their line, which the legend
+   also carries, so identity is never colour-alone. */
+.chart text.line-label { font-size: 11.5px; font-weight: 650; }
